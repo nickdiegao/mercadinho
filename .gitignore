@@ -1,0 +1,19 @@
+# dependencias
+node_modules
+
+# build
+.next
+out
+*.tsbuildinfo
+next-env.d.ts
+
+# ambiente e credenciais
+.env*
+!.env.example
+
+# vercel
+.vercel
+
+# sistema
+.DS_Store
+Thumbs.db
