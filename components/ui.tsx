@@ -13,14 +13,20 @@ export function Cabecalho({
   acoes?: ReactNode;
 }) {
   return (
-    <div className="nao-imprime mb-6 flex flex-wrap items-start justify-between gap-4 border-b border-borda pb-5">
+    <div className="nao-imprime mb-5 flex flex-col gap-3 border-b border-borda pb-4 sm:mb-6 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-4 sm:pb-5">
       <div className="min-w-0">
-        <h1 className="text-2xl font-bold tracking-tight text-tinta">{titulo}</h1>
+        <h1 className="text-xl font-bold tracking-tight text-tinta sm:text-2xl">
+          {titulo}
+        </h1>
         {descricao && (
-          <p className="mt-1 max-w-2xl text-sm text-suave">{descricao}</p>
+          <p className="mt-1 max-w-2xl text-[13px] text-suave sm:text-sm">
+            {descricao}
+          </p>
         )}
       </div>
-      {acoes && <div className="flex flex-wrap items-center gap-2">{acoes}</div>}
+      {acoes && (
+        <div className="flex flex-wrap items-center gap-2 [&>*]:min-w-0">{acoes}</div>
+      )}
     </div>
   );
 }
@@ -37,7 +43,7 @@ export function Cartao({
 }) {
   return (
     <div
-      className={`rounded-lg border border-borda bg-superficie shadow-[0_1px_2px_rgba(15,20,28,0.04)] ${padding ? "p-5" : ""} ${className}`}
+      className={`rounded-lg border border-borda bg-superficie shadow-[0_1px_2px_rgba(15,20,28,0.04)] ${padding ? "p-4 sm:p-5" : ""} ${className}`}
     >
       {children}
     </div>
@@ -84,17 +90,23 @@ export function Indicador({
   }[tom];
 
   return (
-    <Cartao>
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-[11px] font-bold uppercase tracking-[0.09em] text-suave">
+    <Cartao className="p-3.5 sm:p-5">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-[10px] font-bold uppercase leading-tight tracking-[0.08em] text-suave sm:text-[11px] sm:tracking-[0.09em]">
           {rotulo}
         </p>
-        {icone && <span className="text-suave">{icone}</span>}
+        {icone && <span className="shrink-0 text-suave">{icone}</span>}
       </div>
-      <p className={`tabular mt-2 text-[26px] font-semibold leading-none ${cor}`}>
+      <p
+        className={`tabular mt-1.5 text-[19px] font-semibold leading-none sm:mt-2 sm:text-[26px] ${cor}`}
+      >
         {valor}
       </p>
-      {detalhe && <p className="mt-2 text-xs text-suave">{detalhe}</p>}
+      {detalhe && (
+        <p className="mt-1.5 text-[11px] leading-snug text-suave sm:mt-2 sm:text-xs">
+          {detalhe}
+        </p>
+      )}
     </Cartao>
   );
 }

@@ -11,6 +11,8 @@ import {
 import { useEstado } from "@/lib/store";
 import { resumoCaixa } from "@/lib/consultas";
 import { moeda, dataHora, hora, data } from "@/lib/formato";
+import { Lista, type ColunaLista } from "@/components/lista";
+import type { CaixaMovimento, CaixaSessao } from "@/lib/tipos";
 import {
   Aviso,
   Botao,
@@ -20,12 +22,7 @@ import {
   Entrada,
   Etiqueta,
   Indicador,
-  Rolagem,
-  Tabela,
-  Td,
-  Th,
   TituloCartao,
-  Vazio,
 } from "@/components/ui";
 
 const paraCentavos = (t: string) =>
@@ -55,7 +52,10 @@ export default function Caixa() {
         <Cabecalho titulo="Caixa" descricao="Nenhum caixa aberto no momento." />
         <Cartao className="max-w-md">
           <TituloCartao>Abrir caixa</TituloCartao>
-          <Campo rotulo="Fundo de troco (R$)" dica="Dinheiro que já está na gaveta ao abrir">
+          <Campo
+            rotulo="Fundo de troco (R$)"
+            dica="Dinheiro que já está na gaveta ao abrir"
+          >
             <Entrada
               inputMode="decimal"
               value={fundo}
@@ -85,6 +85,121 @@ export default function Caixa() {
     setDescricao("");
   }
 
+  const colunasMov: ColunaLista<CaixaMovimento>[] = [
+    {
+      chave: "hora",
+      titulo: "Hora",
+      papel: "apoio",
+      render: (m) => <span className="whitespace-nowrap">{hora(m.data)}</span>,
+    },
+    {
+      chave: "tipo",
+      titulo: "Tipo",
+      papel: "apoio",
+      render: (m) => (
+        <Etiqueta
+          tom={
+            m.tipo === "VENDA"
+              ? "positivo"
+              : m.tipo === "SUPRIMENTO"
+                ? "marca"
+                : "negativo"
+          }
+        >
+          {m.tipo}
+        </Etiqueta>
+      ),
+    },
+    {
+      chave: "descricao",
+      titulo: "Descrição",
+      papel: "titulo",
+      render: (m) => (
+        <span className="block max-w-[280px] truncate">{m.descricao}</span>
+      ),
+    },
+    {
+      chave: "forma",
+      titulo: "Forma",
+      render: (m) => (
+        <span className="text-suave">{m.formaPagamento ?? "—"}</span>
+      ),
+    },
+    {
+      chave: "valor",
+      titulo: "Valor",
+      alinha: "right",
+      papel: "destaque",
+      render: (m) => (
+        <span
+          className={`font-semibold ${m.valor >= 0 ? "text-positivo" : "text-negativo"}`}
+        >
+          {moeda(m.valor)}
+        </span>
+      ),
+    },
+  ];
+
+  const colunasSessao: ColunaLista<CaixaSessao>[] = [
+    {
+      chave: "dia",
+      titulo: "Dia",
+      papel: "titulo",
+      render: (s) => <span className="whitespace-nowrap">{data(s.abertaEm)}</span>,
+    },
+    {
+      chave: "operador",
+      titulo: "Operador",
+      papel: "apoio",
+      render: (s) => (
+        <>{estado.usuarios.find((u) => u.id === s.usuarioId)?.nome}</>
+      ),
+    },
+    {
+      chave: "fundo",
+      titulo: "Fundo",
+      alinha: "right",
+      render: (s) => <span className="text-suave">{moeda(s.fundoTroco)}</span>,
+    },
+    {
+      chave: "esperado",
+      titulo: "Esperado",
+      alinha: "right",
+      render: (s) => <>{moeda(resumoCaixa(estado, s.id)?.esperado ?? 0)}</>,
+    },
+    {
+      chave: "contado",
+      titulo: "Contado",
+      alinha: "right",
+      papel: "destaque",
+      render: (s) => (
+        <span className="font-semibold text-tinta">{moeda(s.valorContado ?? 0)}</span>
+      ),
+    },
+    {
+      chave: "diferenca",
+      titulo: "Diferença",
+      alinha: "right",
+      render: (s) => {
+        const dif = resumoCaixa(estado, s.id)?.diferenca ?? 0;
+        return (
+          <span
+            className={
+              dif === 0
+                ? "text-suave"
+                : Math.abs(dif) < 500
+                  ? "text-negativo"
+                  : "font-semibold text-alerta"
+            }
+          >
+            {dif > 0 ? "+" : ""}
+            {moeda(dif)}
+          </span>
+        );
+      },
+    },
+  ];
+
   return (
     <>
       <Cabecalho
@@ -92,16 +207,16 @@ export default function Caixa() {
         descricao={`Sessão aberta em ${dataHora(sessao.abertaEm)} por ${estado.usuarios.find((u) => u.id === sessao.usuarioId)?.nome}.`}
       />
 
-      <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
         <Indicador
           rotulo="Esperado na gaveta"
           valor={moeda(esperado)}
-          detalhe="só dinheiro vivo entra nesta conta"
+          detalhe="só dinheiro vivo"
         />
         <Indicador
           rotulo="Faturado na sessão"
           valor={moeda(faturado)}
-          detalhe="todas as formas de pagamento"
+          detalhe="todas as formas"
           tom="positivo"
         />
         <Indicador
@@ -113,7 +228,7 @@ export default function Caixa() {
         <Indicador
           rotulo="Despesas"
           valor={moeda(despesas)}
-          detalhe="pagas direto do caixa"
+          detalhe="pagas do caixa"
           tom="negativo"
         />
       </div>
@@ -128,57 +243,27 @@ export default function Caixa() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_330px]">
-        <Cartao padding={false}>
-          <div className="p-5 pb-3">
-            <TituloCartao extra={<span className="text-[11px] text-suave">{movimentos.length} lançamentos</span>}>
+        <div className="order-2 lg:order-1">
+          <div className="mb-3">
+            <TituloCartao
+              extra={
+                <span className="text-[11px] text-suave">
+                  {movimentos.length} lançamentos
+                </span>
+              }
+            >
               Movimentos da sessão
             </TituloCartao>
           </div>
-          <Rolagem>
-            <Tabela>
-              <thead>
-                <tr>
-                  <Th>Hora</Th>
-                  <Th>Tipo</Th>
-                  <Th>Descrição</Th>
-                  <Th>Forma</Th>
-                  <Th alinha="right">Valor</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...movimentos].reverse().map((m) => (
-                  <tr key={m.id} className="transicao hover:bg-superficie2/60">
-                    <Td className="whitespace-nowrap text-suave">{hora(m.data)}</Td>
-                    <Td>
-                      <Etiqueta
-                        tom={
-                          m.tipo === "VENDA"
-                            ? "positivo"
-                            : m.tipo === "SUPRIMENTO"
-                              ? "marca"
-                              : "negativo"
-                        }
-                      >
-                        {m.tipo}
-                      </Etiqueta>
-                    </Td>
-                    <Td className="max-w-[260px] truncate">{m.descricao}</Td>
-                    <Td className="text-suave">{m.formaPagamento ?? "—"}</Td>
-                    <Td
-                      alinha="right"
-                      className={`font-semibold ${m.valor >= 0 ? "text-positivo" : "text-negativo"}`}
-                    >
-                      {moeda(m.valor)}
-                    </Td>
-                  </tr>
-                ))}
-              </tbody>
-            </Tabela>
-            {movimentos.length === 0 && <Vazio>Nenhum movimento nesta sessão ainda.</Vazio>}
-          </Rolagem>
-        </Cartao>
+          <Lista
+            colunas={colunasMov}
+            linhas={[...movimentos].reverse()}
+            chave={(m) => m.id}
+            vazio="Nenhum movimento nesta sessão ainda."
+          />
+        </div>
 
-        <div className="flex flex-col gap-4">
+        <div className="order-1 flex flex-col gap-4 lg:order-2">
           <Cartao>
             <TituloCartao>Lançar movimento</TituloCartao>
             <div className="space-y-3">
@@ -271,59 +356,17 @@ export default function Caixa() {
         </div>
       </div>
 
-      <Cartao className="mt-6" padding={false}>
-        <div className="p-5 pb-3">
+      <div className="mt-8">
+        <div className="mb-3">
           <TituloCartao>Fechamentos anteriores</TituloCartao>
         </div>
-        <Rolagem>
-          <Tabela>
-            <thead>
-              <tr>
-                <Th>Dia</Th>
-                <Th>Operador</Th>
-                <Th alinha="right">Fundo</Th>
-                <Th alinha="right">Esperado</Th>
-                <Th alinha="right">Contado</Th>
-                <Th alinha="right">Diferença</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {anteriores.map((s) => {
-                const rr = resumoCaixa(estado, s.id);
-                const dif = rr?.diferenca ?? 0;
-                return (
-                  <tr key={s.id} className="transicao hover:bg-superficie2/60">
-                    <Td className="whitespace-nowrap">{data(s.abertaEm)}</Td>
-                    <Td className="text-suave">
-                      {estado.usuarios.find((u) => u.id === s.usuarioId)?.nome}
-                    </Td>
-                    <Td alinha="right" className="text-suave">
-                      {moeda(s.fundoTroco)}
-                    </Td>
-                    <Td alinha="right">{moeda(rr?.esperado ?? 0)}</Td>
-                    <Td alinha="right" className="font-medium text-tinta">
-                      {moeda(s.valorContado ?? 0)}
-                    </Td>
-                    <Td
-                      alinha="right"
-                      className={
-                        dif === 0
-                          ? "text-suave"
-                          : Math.abs(dif) < 500
-                            ? "text-negativo"
-                            : "font-semibold text-alerta"
-                      }
-                    >
-                      {dif > 0 ? "+" : ""}
-                      {moeda(dif)}
-                    </Td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </Tabela>
-        </Rolagem>
-      </Cartao>
+        <Lista
+          colunas={colunasSessao}
+          linhas={anteriores}
+          chave={(s) => s.id}
+          vazio="Nenhum fechamento registrado ainda."
+        />
+      </div>
     </>
   );
 }

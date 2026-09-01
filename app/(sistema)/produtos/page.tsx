@@ -2,10 +2,11 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Pencil, X } from "lucide-react";
+import { ExternalLink, Pencil, X } from "lucide-react";
 import { useEstado, usePerfil } from "@/lib/store";
 import { margem, markup } from "@/lib/regras";
-import { moeda, numero, custoCurto } from "@/lib/formato";
+import { moeda, numero, custoCurto, moeda4 } from "@/lib/formato";
+import { Lista, type ColunaLista } from "@/components/lista";
 import type { Produto } from "@/lib/tipos";
 import {
   Aviso,
@@ -15,13 +16,8 @@ import {
   Cartao,
   Entrada,
   Etiqueta,
-  Rolagem,
   Selecao,
-  Tabela,
-  Td,
-  Th,
   TituloCartao,
-  Vazio,
 } from "@/components/ui";
 
 /** centavos <-> texto "4,50" */
@@ -55,11 +51,161 @@ export default function Produtos() {
       );
   }, [estado.produtos, busca, categoria]);
 
+  const colunas: ColunaLista<Produto>[] = [
+    {
+      chave: "nome",
+      titulo: "Produto",
+      papel: "titulo",
+      render: (p) => (
+        <span className="block max-w-[260px] truncate">{p.nome}</span>
+      ),
+    },
+    {
+      chave: "categoria",
+      titulo: "Categoria",
+      papel: "apoio",
+      render: (p) => (
+        <span className="flex items-center gap-1.5">
+          {catPorId.get(p.categoriaId)}
+          <span className="mono">{p.sku}</span>
+          {p.vasilhameId && <Etiqueta tom="casco">casco</Etiqueta>}
+        </span>
+      ),
+    },
+    {
+      chave: "embalagem",
+      titulo: "Embalagem",
+      alinha: "right",
+      render: (p) => (
+        <span className="text-suave">
+          {p.unidadeCompra} c/ {p.fatorConversao}
+        </span>
+      ),
+    },
+    ...(podeVerCusto
+      ? [
+          {
+            chave: "custo",
+            titulo: "Custo médio",
+            alinha: "right" as const,
+            render: (p: Produto) => <>{custoCurto(p.custoMedio)}</>,
+          },
+        ]
+      : []),
+    {
+      chave: "varejo",
+      titulo: "Varejo",
+      alinha: "right",
+      papel: "destaque",
+      render: (p) => (
+        <span className="font-semibold text-tinta">{moeda(p.precoVarejo)}</span>
+      ),
+    },
+    {
+      chave: "atacado",
+      titulo: "Atacado",
+      alinha: "right",
+      render: (p) => (
+        <span className="font-semibold text-marca">{moeda(p.precoAtacado)}</span>
+      ),
+    },
+    ...(podeVerCusto
+      ? [
+          {
+            chave: "margem",
+            titulo: "Margem",
+            alinha: "right" as const,
+            render: (p: Produto) => (
+              <>
+                <span className="text-positivo">
+                  {(margem(p.precoVarejo, p.custoMedio) * 100).toFixed(1)}%
+                </span>
+                <span className="text-suave">
+                  {" / "}
+                  {(margem(p.precoAtacado, p.custoMedio) * 100).toFixed(1)}%
+                </span>
+              </>
+            ),
+          },
+        ]
+      : []),
+    {
+      chave: "saldo",
+      titulo: "Saldo",
+      alinha: "right",
+      render: (p) => (
+        <span
+          className={p.saldoAtual <= p.estoqueMinimo ? "font-semibold text-alerta" : ""}
+        >
+          {numero(p.saldoAtual)}
+        </span>
+      ),
+    },
+  ];
+
+  function detalhe(p: Produto) {
+    return (
+      <div>
+        <dl className="grid grid-cols-2 gap-x-5 gap-y-3 sm:grid-cols-4">
+          {podeVerCusto && (
+            <>
+              <Info rotulo="Custo médio" valor={moeda4(p.custoMedio)} />
+              <Info
+                rotulo="Custo da última compra"
+                valor={custoCurto(p.custoUltimaCompra)}
+              />
+              <Info
+                rotulo="Markup varejo"
+                valor={`${(markup(p.precoVarejo, p.custoMedio) * 100).toFixed(1)}%`}
+              />
+              <Info
+                rotulo="Markup atacado"
+                valor={`${(markup(p.precoAtacado, p.custoMedio) * 100).toFixed(1)}%`}
+              />
+            </>
+          )}
+          <Info
+            rotulo="Atacado a partir de"
+            valor={`${numero(p.qtdMinimaAtacado)} un`}
+          />
+          <Info rotulo="Estoque mínimo" valor={`${numero(p.estoqueMinimo)} un`} />
+          <Info rotulo="NCM" valor={p.ncm} />
+          <Info
+            rotulo="Código de barras"
+            valor={p.codigoBarras || "—"}
+          />
+        </dl>
+
+        <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-borda pt-3">
+          <Link
+            href={`/estoque/${p.id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-marca hover:underline"
+          >
+            <ExternalLink size={13} /> Ver extrato de movimentações
+          </Link>
+          {ehAdmin && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditando(p);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+              className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-marca hover:underline"
+            >
+              <Pencil size={13} /> Editar preços
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <Cabecalho
         titulo="Produtos"
-        descricao="Quatro valores por produto: custo de compra, custo por unidade, preço de varejo e preço de atacado."
+        descricao="Toque num produto para ver custo, margem e markup. Quatro valores por produto: custo, custo por unidade, varejo e atacado."
       />
 
       <div className="nao-imprime mb-4 grid gap-2 sm:grid-cols-[1fr_220px]">
@@ -93,81 +239,13 @@ export default function Produtos() {
         />
       )}
 
-      <Rolagem>
-        <Tabela>
-          <thead>
-            <tr>
-              <Th>Produto</Th>
-              <Th>Categoria</Th>
-              <Th alinha="right">Embalagem</Th>
-              {podeVerCusto && <Th alinha="right">Custo médio</Th>}
-              <Th alinha="right">Varejo</Th>
-              <Th alinha="right">Atacado</Th>
-              {podeVerCusto && <Th alinha="right">Margem</Th>}
-              <Th alinha="right">Saldo</Th>
-              {ehAdmin && <Th />}
-            </tr>
-          </thead>
-          <tbody>
-            {lista.map((p) => (
-              <tr key={p.id} className="transicao hover:bg-superficie2/60">
-                <Td className="max-w-[260px]">
-                  <Link
-                    href={`/estoque/${p.id}`}
-                    className="font-medium text-tinta hover:text-marca hover:underline"
-                  >
-                    {p.nome}
-                  </Link>
-                  <span className="mono ml-2 text-[11px] text-suave">{p.sku}</span>
-                  {p.vasilhameId && (
-                    <Etiqueta tom="casco">
-                      <span className="ml-0">casco</span>
-                    </Etiqueta>
-                  )}
-                </Td>
-                <Td className="text-suave">{catPorId.get(p.categoriaId)}</Td>
-                <Td alinha="right" className="text-suave">
-                  {p.unidadeCompra} c/ {p.fatorConversao}
-                </Td>
-                {podeVerCusto && <Td alinha="right">{custoCurto(p.custoMedio)}</Td>}
-                <Td alinha="right" className="font-semibold text-tinta">
-                  {moeda(p.precoVarejo)}
-                </Td>
-                <Td alinha="right" className="font-semibold text-marca">
-                  {moeda(p.precoAtacado)}
-                </Td>
-                {podeVerCusto && (
-                  <Td alinha="right" className="text-positivo">
-                    {(margem(p.precoVarejo, p.custoMedio) * 100).toFixed(1)}%
-                    <span className="text-suave">
-                      {" / "}
-                      {(margem(p.precoAtacado, p.custoMedio) * 100).toFixed(1)}%
-                    </span>
-                  </Td>
-                )}
-                <Td
-                  alinha="right"
-                  className={p.saldoAtual <= p.estoqueMinimo ? "font-semibold text-alerta" : ""}
-                >
-                  {numero(p.saldoAtual)}
-                </Td>
-                {ehAdmin && (
-                  <Td>
-                    <button
-                      onClick={() => setEditando(p)}
-                      className="transicao rounded p-1.5 text-suave hover:bg-marca-clara hover:text-marca"
-                      aria-label={`Editar ${p.nome}`}
-                    >
-                      <Pencil size={14} />
-                    </button>
-                  </Td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </Tabela>
-        {lista.length === 0 && <Vazio>Nenhum produto encontrado.</Vazio>}
-      </Rolagem>
+      <Lista
+        colunas={colunas}
+        linhas={lista}
+        chave={(p) => p.id}
+        detalhe={detalhe}
+        vazio="Nenhum produto encontrado."
+      />
 
       {!podeVerCusto && (
         <div className="mt-4">
@@ -179,6 +257,17 @@ export default function Produtos() {
         </div>
       )}
     </>
+  );
+}
+
+function Info({ rotulo, valor }: { rotulo: string; valor: string }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-[10px] font-bold uppercase tracking-[0.06em] text-suave">
+        {rotulo}
+      </dt>
+      <dd className="tabular truncate text-[13px] text-tinta2">{valor}</dd>
+    </div>
   );
 }
 
@@ -218,8 +307,8 @@ function EditorProduto({
         </button>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-3">
-        <Campo rotulo="Nome" className="lg:col-span-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <Campo rotulo="Nome" className="sm:col-span-2 lg:col-span-3">
           <Entrada value={nome} onChange={(e) => setNome(e.target.value)} />
         </Campo>
 
@@ -275,7 +364,7 @@ function EditorProduto({
         </Campo>
 
         {podeVerCusto && (
-          <div className="rounded-md border border-borda bg-superficie2/60 px-3 py-2.5 lg:col-span-2">
+          <div className="rounded-md border border-borda bg-superficie2/60 px-3 py-2.5 sm:col-span-2">
             <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-suave">
               Custo médio ponderado
             </p>
@@ -291,7 +380,7 @@ function EditorProduto({
         )}
       </div>
 
-      <div className="mt-4 flex gap-2">
+      <div className="mt-4 flex flex-wrap gap-2">
         <Botao
           variante="primario"
           onClick={() =>

@@ -154,7 +154,7 @@ export default function LayoutSistema({ children }: { children: React.ReactNode 
       </aside>
 
       <main className="min-w-0 flex-1">
-        <div className="mx-auto max-w-[1180px] px-5 py-7 lg:px-8 lg:py-9">
+        <div className="mx-auto max-w-[1180px] px-4 py-5 sm:px-5 sm:py-7 lg:px-8 lg:py-9">
           {children}
         </div>
       </main>

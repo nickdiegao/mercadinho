@@ -6,19 +6,15 @@ import { AlertTriangle, Beer } from "lucide-react";
 import { useEstado, usePerfil } from "@/lib/store";
 import { estoqueValorizado } from "@/lib/regras";
 import { moeda, numero, custoCurto } from "@/lib/formato";
+import { Lista, type ColunaLista } from "@/components/lista";
+import type { Produto } from "@/lib/tipos";
 import {
   Cabecalho,
-  Cartao,
   Entrada,
   Etiqueta,
   Indicador,
-  Rolagem,
   Selecao,
-  Tabela,
-  Td,
-  Th,
   TituloCartao,
-  Vazio,
 } from "@/components/ui";
 
 export default function Estoque() {
@@ -47,43 +43,181 @@ export default function Estoque() {
         if (filtro === "baixo" && p.saldoAtual > p.estoqueMinimo) return false;
         if (filtro && filtro !== "baixo" && p.categoriaId !== filtro) return false;
         if (!t) return true;
-        return p.nome.toLowerCase().includes(t) || p.sku.toLowerCase().includes(t);
+        return (
+          p.nome.toLowerCase().includes(t) || p.sku.toLowerCase().includes(t)
+        );
       })
-      .sort((a, b) => a.saldoAtual / (a.estoqueMinimo || 1) - b.saldoAtual / (b.estoqueMinimo || 1));
+      .sort(
+        (a, b) =>
+          a.saldoAtual / (a.estoqueMinimo || 1) -
+          b.saldoAtual / (b.estoqueMinimo || 1),
+      );
   }, [normais, busca, filtro]);
 
   const abaixo = normais.filter((p) => p.saldoAtual <= p.estoqueMinimo);
+
+  const colunas: ColunaLista<Produto>[] = [
+    {
+      chave: "nome",
+      titulo: "Produto",
+      papel: "titulo",
+      render: (p) => (
+        <Link
+          href={`/estoque/${p.id}`}
+          className="block max-w-[280px] truncate text-tinta hover:text-marca hover:underline"
+        >
+          {p.nome}
+        </Link>
+      ),
+    },
+    {
+      chave: "categoria",
+      titulo: "Categoria",
+      papel: "apoio",
+      render: (p) => (
+        <span className="flex items-center gap-1.5 text-suave">
+          {catPorId.get(p.categoriaId)}
+          {p.saldoAtual <= p.estoqueMinimo && (
+            <Etiqueta tom="alerta">
+              <AlertTriangle size={10} className="mr-1" /> repor
+            </Etiqueta>
+          )}
+        </span>
+      ),
+    },
+    {
+      chave: "saldo",
+      titulo: "Saldo",
+      alinha: "right",
+      papel: "destaque",
+      render: (p) => (
+        <span
+          className={
+            p.saldoAtual <= p.estoqueMinimo
+              ? "font-semibold text-alerta"
+              : "font-semibold text-tinta"
+          }
+        >
+          {numero(p.saldoAtual)}
+          <span className="text-[11px] font-normal text-suave"> un</span>
+        </span>
+      ),
+    },
+    {
+      chave: "caixas",
+      titulo: "Em caixas",
+      alinha: "right",
+      render: (p) => (
+        <span className="text-suave">
+          {numero(Math.floor(p.saldoAtual / p.fatorConversao))} {p.unidadeCompra}
+        </span>
+      ),
+    },
+    {
+      chave: "minimo",
+      titulo: "Mínimo",
+      alinha: "right",
+      render: (p) => <span className="text-suave">{numero(p.estoqueMinimo)}</span>,
+    },
+    ...(podeVerCusto
+      ? [
+          {
+            chave: "custo",
+            titulo: "Custo médio",
+            alinha: "right" as const,
+            render: (p: Produto) => <>{custoCurto(p.custoMedio)}</>,
+          },
+          {
+            chave: "valor",
+            titulo: "Valor",
+            alinha: "right" as const,
+            render: (p: Produto) => (
+              <span className="font-medium">
+                {moeda(Math.round((p.saldoAtual * p.custoMedio) / 100))}
+              </span>
+            ),
+          },
+        ]
+      : []),
+  ];
+
+  const colunasCasco: ColunaLista<Produto>[] = [
+    {
+      chave: "nome",
+      titulo: "Casco",
+      papel: "titulo",
+      render: (v) => (
+        <Link
+          href={`/estoque/${v.id}`}
+          className="text-tinta hover:text-marca hover:underline"
+        >
+          {v.nome}
+        </Link>
+      ),
+    },
+    {
+      chave: "rua",
+      titulo: "Na rua",
+      alinha: "right",
+      papel: "destaque",
+      render: (v) => (
+        <span className="font-semibold text-casco">{numero(v.saldoAtual)}</span>
+      ),
+    },
+    {
+      chave: "engradados",
+      titulo: "Equivale a",
+      alinha: "right",
+      render: (v) => (
+        <span className="text-suave">
+          {numero(Math.floor(v.saldoAtual / 24))} engradados
+        </span>
+      ),
+    },
+    ...(podeVerCusto
+      ? [
+          {
+            chave: "valor",
+            titulo: "Valor parado",
+            alinha: "right" as const,
+            render: (v: Produto) => (
+              <>{moeda(Math.round((v.saldoAtual * v.custoMedio) / 100))}</>
+            ),
+          },
+        ]
+      : []),
+  ];
 
   return (
     <>
       <Cabecalho
         titulo="Estoque"
-        descricao="Saldo em unidade base. Clique num produto para ver o extrato completo de movimentações."
+        descricao="Saldo em unidade base. Toque num produto para ver o extrato completo de movimentações."
       />
 
-      <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
         {podeVerCusto && (
           <Indicador
             rotulo="Estoque a custo"
             valor={moeda(estoqueValorizado(normais))}
-            detalhe="saldo × custo médio de cada produto"
+            detalhe="saldo × custo médio"
           />
         )}
         <Indicador
           rotulo="Unidades"
           valor={numero(normais.reduce((a, p) => a + p.saldoAtual, 0))}
-          detalhe={`em ${normais.length} produtos ativos`}
+          detalhe={`em ${normais.length} produtos`}
         />
         <Indicador
           rotulo="Abaixo do mínimo"
           valor={String(abaixo.length)}
-          detalhe="produtos que precisam de reposição"
+          detalhe="precisam de reposição"
           tom={abaixo.length ? "alerta" : "neutro"}
         />
         <Indicador
           rotulo="Cascos na rua"
           valor={numero(cascos.reduce((a, p) => a + p.saldoAtual, 0))}
-          detalhe="garrafas retornáveis com clientes"
+          detalhe="com clientes"
           tom="casco"
         />
       </div>
@@ -107,72 +241,15 @@ export default function Estoque() {
         </Selecao>
       </div>
 
-      <Rolagem>
-        <Tabela>
-          <thead>
-            <tr>
-              <Th>Produto</Th>
-              <Th>Categoria</Th>
-              <Th alinha="right">Saldo</Th>
-              <Th alinha="right">Em {"caixas"}</Th>
-              <Th alinha="right">Mínimo</Th>
-              {podeVerCusto && <Th alinha="right">Custo médio</Th>}
-              {podeVerCusto && <Th alinha="right">Valor</Th>}
-              <Th />
-            </tr>
-          </thead>
-          <tbody>
-            {lista.map((p) => {
-              const baixo = p.saldoAtual <= p.estoqueMinimo;
-              return (
-                <tr key={p.id} className="transicao hover:bg-superficie2/60">
-                  <Td className="max-w-[280px]">
-                    <Link
-                      href={`/estoque/${p.id}`}
-                      className="font-medium text-tinta hover:text-marca hover:underline"
-                    >
-                      {p.nome}
-                    </Link>
-                    <span className="mono ml-2 text-[11px] text-suave">{p.sku}</span>
-                  </Td>
-                  <Td className="text-suave">{catPorId.get(p.categoriaId)}</Td>
-                  <Td
-                    alinha="right"
-                    className={baixo ? "font-semibold text-alerta" : "font-semibold text-tinta"}
-                  >
-                    {numero(p.saldoAtual)}
-                  </Td>
-                  <Td alinha="right" className="text-suave">
-                    {numero(Math.floor(p.saldoAtual / p.fatorConversao))} {p.unidadeCompra}
-                  </Td>
-                  <Td alinha="right" className="text-suave">
-                    {numero(p.estoqueMinimo)}
-                  </Td>
-                  {podeVerCusto && (
-                    <Td alinha="right">{custoCurto(p.custoMedio)}</Td>
-                  )}
-                  {podeVerCusto && (
-                    <Td alinha="right" className="font-medium">
-                      {moeda(Math.round((p.saldoAtual * p.custoMedio) / 100))}
-                    </Td>
-                  )}
-                  <Td>
-                    {baixo && (
-                      <Etiqueta tom="alerta">
-                        <AlertTriangle size={11} className="mr-1" /> repor
-                      </Etiqueta>
-                    )}
-                  </Td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </Tabela>
-        {lista.length === 0 && <Vazio>Nenhum produto com esses filtros.</Vazio>}
-      </Rolagem>
+      <Lista
+        colunas={colunas}
+        linhas={lista}
+        chave={(p) => p.id}
+        vazio="Nenhum produto com esses filtros."
+      />
 
-      <Cartao className="mt-6" padding={false}>
-        <div className="p-5 pb-3">
+      <div className="mt-8">
+        <div className="mb-3">
           <TituloCartao
             extra={
               <span className="flex items-center gap-1.5 text-[11px] font-semibold text-casco">
@@ -182,47 +259,18 @@ export default function Estoque() {
           >
             Vasilhame
           </TituloCartao>
-          <p className="-mt-2 mb-1 text-[13px] text-suave">
+          <p className="-mt-2 text-[13px] leading-relaxed text-suave">
             Para casco, o saldo conta o que está <b>na rua</b> — em poder do
-            cliente — e não o que está no depósito. Cada garrafa vendida sai
-            junto com o produto e volta na devolução.
+            cliente — e não o que está no depósito.
           </p>
         </div>
-        <Rolagem>
-          <Tabela>
-            <thead>
-              <tr>
-                <Th>Casco</Th>
-                <Th alinha="right">Na rua</Th>
-                <Th alinha="right">Equivale a</Th>
-                {podeVerCusto && <Th alinha="right">Valor parado</Th>}
-              </tr>
-            </thead>
-            <tbody>
-              {cascos.map((v) => (
-                <tr key={v.id} className="transicao hover:bg-superficie2/60">
-                  <Td className="font-medium text-tinta">
-                    <Link href={`/estoque/${v.id}`} className="hover:text-marca hover:underline">
-                      {v.nome}
-                    </Link>
-                  </Td>
-                  <Td alinha="right" className="font-semibold text-casco">
-                    {numero(v.saldoAtual)}
-                  </Td>
-                  <Td alinha="right" className="text-suave">
-                    {numero(Math.floor(v.saldoAtual / 24))} engradados
-                  </Td>
-                  {podeVerCusto && (
-                    <Td alinha="right">
-                      {moeda(Math.round((v.saldoAtual * v.custoMedio) / 100))}
-                    </Td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </Tabela>
-        </Rolagem>
-      </Cartao>
+        <Lista
+          colunas={colunasCasco}
+          linhas={cascos}
+          chave={(v) => v.id}
+          vazio="Nenhum vasilhame cadastrado."
+        />
+      </div>
     </>
   );
 }

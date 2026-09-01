@@ -34,10 +34,6 @@ import {
   Cartao,
   Etiqueta,
   Indicador,
-  Rolagem,
-  Tabela,
-  Td,
-  Th,
   TituloCartao,
   Vazio,
 } from "@/components/ui";
@@ -65,7 +61,7 @@ export default function Painel() {
         descricao={`Movimento de hoje, ${new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long" })}.`}
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
         <Indicador
           rotulo="Vendas de hoje"
           valor={moeda(r.dia.receita)}
@@ -127,7 +123,7 @@ export default function Painel() {
           >
             Últimos 30 dias
           </TituloCartao>
-          <div className="h-[236px] w-full">
+          <div className="h-[200px] w-full sm:h-[236px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={serie} margin={{ top: 4, right: 4, left: -18, bottom: 0 }}>
                 <defs>
@@ -147,7 +143,8 @@ export default function Painel() {
                   tick={{ fontSize: 10.5, fill: "#6b7685" }}
                   axisLine={false}
                   tickLine={false}
-                  interval={4}
+                  interval="preserveStartEnd"
+                  minTickGap={28}
                 />
                 <YAxis
                   tick={{ fontSize: 10.5, fill: "#6b7685" }}
@@ -334,45 +331,36 @@ export default function Painel() {
               Últimas vendas
             </TituloCartao>
           </div>
-          <Rolagem>
-            <Tabela>
-              <thead>
-                <tr>
-                  <Th>Nº</Th>
-                  <Th>Cliente</Th>
-                  <Th>Canal</Th>
-                  <Th alinha="right">Total</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {ultimas.map((v) => {
-                  const c = estado.clientes.find((x) => x.id === v.clienteId);
-                  return (
-                    <tr key={v.id} className="transicao hover:bg-superficie2/60">
-                      <Td className="tabular whitespace-nowrap">
-                        <Link href={`/vendas/${v.id}`} className="hover:text-marca hover:underline">
+          <ul className="px-4 pb-4 sm:px-5 sm:pb-5">
+            {ultimas.map((v) => {
+              const c = estado.clientes.find((x) => x.id === v.clienteId);
+              return (
+                <li key={v.id} className="border-t border-borda first:border-t-0">
+                  <Link
+                    href={`/vendas/${v.id}`}
+                    className="transicao flex items-center justify-between gap-3 py-2.5 hover:text-marca"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-[13.5px] font-medium text-tinta">
+                        {c?.nomeRazao ?? "Consumidor final"}
+                      </span>
+                      <span className="mt-0.5 flex items-center gap-2 text-[11.5px] text-suave">
+                        <span className="tabular">
                           {String(v.numero).padStart(5, "0")}
-                        </Link>
-                      </Td>
-                      <Td className="max-w-[190px] truncate">
-                        {c?.nomeRazao ?? (
-                          <span className="text-suave">Consumidor final</span>
-                        )}
-                      </Td>
-                      <Td>
+                        </span>
                         <Etiqueta tom={v.tipoPreco === "ATACADO" ? "marca" : "neutro"}>
                           {v.tipoPreco}
                         </Etiqueta>
-                      </Td>
-                      <Td alinha="right" className="font-semibold text-tinta">
-                        {moeda(v.total)}
-                      </Td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </Tabela>
-          </Rolagem>
+                      </span>
+                    </span>
+                    <span className="tabular shrink-0 text-[14px] font-semibold text-tinta">
+                      {moeda(v.total)}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
         </Cartao>
       </div>
     </>

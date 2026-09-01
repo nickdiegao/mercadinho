@@ -13,6 +13,7 @@ import {
 } from "@/lib/consultas";
 import { baixarCsv, baixarExcel, imprimirPdf, type Relatorio } from "@/lib/exportar";
 import { moeda, numero, porcento, data } from "@/lib/formato";
+import { Lista, type ColunaLista } from "@/components/lista";
 import {
   Barra,
   Botao,
@@ -20,13 +21,8 @@ import {
   Cartao,
   Etiqueta,
   Indicador,
-  Rolagem,
   Selecao,
-  Tabela,
-  Td,
-  Th,
   TituloCartao,
-  Vazio,
 } from "@/components/ui";
 
 const DIA = 86400000;
@@ -43,6 +39,14 @@ interface LinhaRanking {
   receita: number;
   lucro: number;
 }
+
+type LinhaAbc = LinhaRanking & { classe: string };
+type LinhaCategoria = {
+  nome: string;
+  receita: number;
+  lucro: number;
+  qtd: number;
+};
 
 export default function Relatorios() {
   const { estado } = useEstado();
@@ -108,17 +112,122 @@ export default function Relatorios() {
   const maior = ranking[0]?.receita ?? 1;
   const receitaCanais = canais.ATACADO.receita + canais.VAREJO.receita;
 
+  const colunasCategoria: ColunaLista<LinhaCategoria>[] = [
+    {
+      chave: "nome",
+      titulo: "Categoria",
+      papel: "titulo",
+      render: (c) => <>{c.nome}</>,
+    },
+    {
+      chave: "receita",
+      titulo: "Receita",
+      alinha: "right",
+      papel: "destaque",
+      render: (c) => <span className="font-semibold text-tinta">{moeda(c.receita)}</span>,
+    },
+    ...(podeVerLucro
+      ? [
+          {
+            chave: "lucro",
+            titulo: "Lucro",
+            alinha: "right" as const,
+            render: (c: LinhaCategoria) => (
+              <span className="text-positivo">{moeda(c.lucro)}</span>
+            ),
+          },
+          {
+            chave: "margem",
+            titulo: "Margem",
+            alinha: "right" as const,
+            render: (c: LinhaCategoria) => (
+              <span className="text-suave">
+                {porcento(c.receita > 0 ? c.lucro / c.receita : 0)}
+              </span>
+            ),
+          },
+        ]
+      : []),
+  ];
+
+  const colunasProduto: ColunaLista<LinhaAbc>[] = [
+    {
+      chave: "nome",
+      titulo: "Produto",
+      papel: "titulo",
+      render: (p) => <span className="block max-w-[260px] truncate">{p.nome}</span>,
+    },
+    {
+      chave: "abc",
+      titulo: "ABC",
+      alinha: "center",
+      papel: "apoio",
+      render: (p) => (
+        <Etiqueta
+          tom={p.classe === "A" ? "positivo" : p.classe === "B" ? "marca" : "neutro"}
+        >
+          {p.classe}
+        </Etiqueta>
+      ),
+    },
+    {
+      chave: "qtd",
+      titulo: "Qtd",
+      alinha: "right",
+      render: (p) => <>{numero(p.qtd)} un</>,
+    },
+    {
+      chave: "receita",
+      titulo: "Receita",
+      alinha: "right",
+      papel: "destaque",
+      render: (p) => <span className="font-semibold text-tinta">{moeda(p.receita)}</span>,
+    },
+    {
+      chave: "participacao",
+      titulo: "Participação",
+      papel: "sóTabela",
+      render: (p) => (
+        <div className="w-[130px]">
+          <Barra fracao={p.receita / maior} />
+        </div>
+      ),
+    },
+    ...(podeVerLucro
+      ? [
+          {
+            chave: "lucro",
+            titulo: "Lucro",
+            alinha: "right" as const,
+            render: (p: LinhaAbc) => (
+              <span className="text-positivo">{moeda(p.lucro)}</span>
+            ),
+          },
+          {
+            chave: "margemProd",
+            titulo: "Margem",
+            alinha: "right" as const,
+            render: (p: LinhaAbc) => (
+              <span className="text-suave">
+                {porcento(p.receita > 0 ? p.lucro / p.receita : 0)}
+              </span>
+            ),
+          },
+        ]
+      : []),
+  ];
+
   return (
     <>
       <Cabecalho
         titulo="Relatórios"
         descricao="Todo relatório sai em três formatos, porque são três necessidades diferentes."
         acoes={
-          <>
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
             <Selecao
               value={dias}
               onChange={(e) => setDias(e.target.value)}
-              className="w-[168px]"
+              className="col-span-2 sm:w-[168px]"
             >
               {PERIODOS.map((p) => (
                 <option key={p.valor} value={p.valor}>
@@ -135,7 +244,7 @@ export default function Relatorios() {
             <Botao onClick={() => baixarCsv(relatorio)}>
               <FileText size={15} /> CSV
             </Botao>
-          </>
+          </div>
         }
       />
 
@@ -150,7 +259,7 @@ export default function Relatorios() {
         </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
         <Indicador rotulo="Receita" valor={moeda(t.receita)} detalhe={`${t.quantidade} vendas`} />
         <Indicador
           rotulo="Custo da mercadoria"
@@ -199,49 +308,24 @@ export default function Relatorios() {
           )}
         </Cartao>
 
-        <Cartao padding={false}>
-          <div className="p-5 pb-3">
+        <div>
+          <div className="mb-3">
             <TituloCartao>Por categoria</TituloCartao>
           </div>
-          <Rolagem>
-            <Tabela>
-              <thead>
-                <tr>
-                  <Th>Categoria</Th>
-                  <Th alinha="right">Receita</Th>
-                  {podeVerLucro && <Th alinha="right">Lucro</Th>}
-                  {podeVerLucro && <Th alinha="right">Margem</Th>}
-                </tr>
-              </thead>
-              <tbody>
-                {cats.map((c) => (
-                  <tr key={c.nome} className="transicao hover:bg-superficie2/60">
-                    <Td className="font-medium text-tinta">{c.nome}</Td>
-                    <Td alinha="right">{moeda(c.receita)}</Td>
-                    {podeVerLucro && (
-                      <Td alinha="right" className="text-positivo">
-                        {moeda(c.lucro)}
-                      </Td>
-                    )}
-                    {podeVerLucro && (
-                      <Td alinha="right" className="text-suave">
-                        {porcento(c.receita > 0 ? c.lucro / c.receita : 0)}
-                      </Td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </Tabela>
-            {cats.length === 0 && <Vazio>Sem vendas no período.</Vazio>}
-          </Rolagem>
-        </Cartao>
+          <Lista
+            colunas={colunasCategoria}
+            linhas={cats}
+            chave={(c) => c.nome}
+            vazio="Sem vendas no período."
+          />
+        </div>
       </div>
 
-      <Cartao className="mt-4" padding={false}>
-        <div className="p-5 pb-3">
+      <div className="mt-6">
+        <div className="mb-3">
           <TituloCartao
             extra={
-              <span className="text-[11px] text-suave">
+              <span className="text-right text-[11px] text-suave">
                 curva ABC · {abc.filter((a) => a.classe === "A").length} produtos
                 fazem 80% da receita
               </span>
@@ -250,56 +334,13 @@ export default function Relatorios() {
             Lucro por produto
           </TituloCartao>
         </div>
-        <Rolagem>
-          <Tabela>
-            <thead>
-              <tr>
-                <Th>Produto</Th>
-                <Th alinha="center">ABC</Th>
-                <Th alinha="right">Qtd</Th>
-                <Th alinha="right">Receita</Th>
-                <Th>Participação</Th>
-                {podeVerLucro && <Th alinha="right">Lucro</Th>}
-                {podeVerLucro && <Th alinha="right">Margem</Th>}
-              </tr>
-            </thead>
-            <tbody>
-              {abc.map((p) => (
-                <tr key={p.produtoId} className="transicao hover:bg-superficie2/60">
-                  <Td className="max-w-[260px] truncate font-medium text-tinta">
-                    {p.nome}
-                  </Td>
-                  <Td alinha="center">
-                    <Etiqueta
-                      tom={p.classe === "A" ? "positivo" : p.classe === "B" ? "marca" : "neutro"}
-                    >
-                      {p.classe}
-                    </Etiqueta>
-                  </Td>
-                  <Td alinha="right">{numero(p.qtd)}</Td>
-                  <Td alinha="right" className="font-semibold text-tinta">
-                    {moeda(p.receita)}
-                  </Td>
-                  <Td className="w-[130px]">
-                    <Barra fracao={p.receita / maior} />
-                  </Td>
-                  {podeVerLucro && (
-                    <Td alinha="right" className="text-positivo">
-                      {moeda(p.lucro)}
-                    </Td>
-                  )}
-                  {podeVerLucro && (
-                    <Td alinha="right" className="text-suave">
-                      {porcento(p.receita > 0 ? p.lucro / p.receita : 0)}
-                    </Td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </Tabela>
-          {abc.length === 0 && <Vazio>Sem vendas no período selecionado.</Vazio>}
-        </Rolagem>
-      </Cartao>
+        <Lista
+          colunas={colunasProduto}
+          linhas={abc}
+          chave={(p) => p.produtoId}
+          vazio="Sem vendas no período selecionado."
+        />
+      </div>
 
       <div className="nao-imprime mt-6 grid gap-3 lg:grid-cols-3">
         <Cartao>

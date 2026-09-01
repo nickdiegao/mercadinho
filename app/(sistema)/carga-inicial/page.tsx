@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { ClipboardList, Printer, Save } from "lucide-react";
 import { useEstado } from "@/lib/store";
 import { moeda, numero, custoCurto } from "@/lib/formato";
+import { Lista, type ColunaLista } from "@/components/lista";
+import type { Produto } from "@/lib/tipos";
 import {
   Aviso,
   Botao,
@@ -11,11 +13,7 @@ import {
   Cartao,
   Entrada,
   Etiqueta,
-  Rolagem,
   Selecao,
-  Tabela,
-  Td,
-  Th,
   TituloCartao,
 } from "@/components/ui";
 
@@ -60,6 +58,80 @@ export default function CargaInicial() {
     }
     setContagem({});
   }
+
+  const diferencaDe = (p: Produto) => {
+    const txt = contagem[p.id] ?? "";
+    if (txt === "") return null;
+    const contado = parseFloat(txt.replace(",", "."));
+    return Number.isNaN(contado) ? null : contado - p.saldoAtual;
+  };
+
+  const colunas: ColunaLista<Produto>[] = [
+    {
+      chave: "produto",
+      titulo: "Produto",
+      papel: "titulo",
+      render: (p) => (
+        <span className="block max-w-[300px] truncate">{p.nome}</span>
+      ),
+    },
+    {
+      chave: "sku",
+      titulo: "Embalagem",
+      papel: "apoio",
+      render: (p) => (
+        <>
+          <span className="mono">{p.sku}</span> · {p.unidadeCompra} c/{" "}
+          {p.fatorConversao}
+        </>
+      ),
+    },
+    {
+      chave: "sistema",
+      titulo: "Saldo no sistema",
+      alinha: "right",
+      render: (p) => <>{numero(p.saldoAtual)} un</>,
+    },
+    {
+      chave: "contado",
+      titulo: "Contado",
+      alinha: "right",
+      render: (p) => (
+        <input
+          value={contagem[p.id] ?? ""}
+          onChange={(e) =>
+            setContagem((c) => ({ ...c, [p.id]: e.target.value }))
+          }
+          inputMode="decimal"
+          placeholder="—"
+          aria-label={`Quantidade contada de ${p.nome}`}
+          className="tabular w-full max-w-[110px] rounded border border-borda px-2 py-1.5 text-right text-sm focus:border-marca focus:outline-none print:border-0 print:border-b print:border-tinta2"
+        />
+      ),
+    },
+    {
+      chave: "diferenca",
+      titulo: "Diferença",
+      alinha: "right",
+      papel: "destaque",
+      render: (p) => {
+        const dif = diferencaDe(p);
+        return (
+          <span
+            className={
+              dif == null || dif === 0
+                ? "text-suave"
+                : dif > 0
+                  ? "font-semibold text-positivo"
+                  : "font-semibold text-alerta"
+            }
+          >
+            {dif == null ? "—" : `${dif > 0 ? "+" : ""}${numero(dif)}`}
+          </span>
+        );
+      },
+    },
+  ];
 
   return (
     <>
@@ -142,64 +214,12 @@ export default function CargaInicial() {
         </p>
       </div>
 
-      <Rolagem>
-        <Tabela>
-          <thead>
-            <tr>
-              <Th>Produto</Th>
-              <Th alinha="right">Embalagem</Th>
-              <Th alinha="right">Saldo no sistema</Th>
-              <Th alinha="right">Contado</Th>
-              <Th alinha="right">Diferença</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {produtos.map((p) => {
-              const txt = contagem[p.id] ?? "";
-              const contado = txt === "" ? null : parseFloat(txt.replace(",", "."));
-              const dif =
-                contado != null && !Number.isNaN(contado) ? contado - p.saldoAtual : null;
-              return (
-                <tr key={p.id} className="transicao hover:bg-superficie2/60">
-                  <Td className="max-w-[300px]">
-                    <span className="block truncate font-medium text-tinta">
-                      {p.nome}
-                    </span>
-                    <span className="mono text-[11px] text-suave">{p.sku}</span>
-                  </Td>
-                  <Td alinha="right" className="text-suave">
-                    {p.unidadeCompra} c/ {p.fatorConversao}
-                  </Td>
-                  <Td alinha="right">{numero(p.saldoAtual)}</Td>
-                  <Td alinha="right">
-                    <input
-                      value={txt}
-                      onChange={(e) =>
-                        setContagem((c) => ({ ...c, [p.id]: e.target.value }))
-                      }
-                      inputMode="decimal"
-                      placeholder="—"
-                      className="tabular w-24 rounded border border-borda px-2 py-1 text-right text-sm focus:border-marca focus:outline-none print:border-b print:border-tinta2"
-                    />
-                  </Td>
-                  <Td
-                    alinha="right"
-                    className={
-                      dif == null || dif === 0
-                        ? "text-suave"
-                        : dif > 0
-                          ? "font-semibold text-positivo"
-                          : "font-semibold text-alerta"
-                    }
-                  >
-                    {dif == null ? "—" : `${dif > 0 ? "+" : ""}${numero(dif)}`}
-                  </Td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </Tabela>
-      </Rolagem>
+      <Lista
+        colunas={colunas}
+        linhas={produtos}
+        chave={(p) => p.id}
+        vazio="Nenhum produto nesta categoria."
+      />
 
       {divergentes.length > 0 && (
         <Cartao className="nao-imprime mt-4 border-marca/40">

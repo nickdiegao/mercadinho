@@ -1,21 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useMemo, useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useEstado, usePerfil } from "@/lib/store";
 import { moeda, data } from "@/lib/formato";
+import { Lista, type ColunaLista } from "@/components/lista";
+import type { Cliente } from "@/lib/tipos";
 import {
   Cabecalho,
   Cartao,
   Entrada,
   Etiqueta,
-  Rolagem,
   Selecao,
-  Tabela,
-  Td,
-  Th,
-  Vazio,
 } from "@/components/ui";
 
 export default function Clientes() {
@@ -23,23 +19,20 @@ export default function Clientes() {
   const { podeVerLucro } = usePerfil();
   const [busca, setBusca] = useState("");
   const [tabela, setTabela] = useState("");
-  const [aberto, setAberto] = useState<string | null>(null);
 
   const porCliente = useMemo(() => {
     const acc = new Map<
       string,
-      { compras: number; total: number; lucro: number; ultima: string; fiado: number }
+      { compras: number; total: number; lucro: number; fiado: number }
     >();
     for (const v of estado.vendas) {
       if (!v.clienteId || v.status !== "FECHADA") continue;
       const a =
-        acc.get(v.clienteId) ??
-        { compras: 0, total: 0, lucro: 0, ultima: v.data, fiado: 0 };
+        acc.get(v.clienteId) ?? { compras: 0, total: 0, lucro: 0, fiado: 0 };
       a.compras += 1;
       a.total += v.total;
       a.lucro += v.total - v.custoTotal;
       if (v.formaPagamento === "FIADO") a.fiado += v.total;
-      if (v.data > a.ultima) a.ultima = v.data;
       acc.set(v.clienteId, a);
     }
     return acc;
@@ -57,9 +50,135 @@ export default function Clientes() {
           c.telefone.includes(t),
       )
       .sort(
-        (a, b) => (porCliente.get(b.id)?.total ?? 0) - (porCliente.get(a.id)?.total ?? 0),
+        (a, b) =>
+          (porCliente.get(b.id)?.total ?? 0) - (porCliente.get(a.id)?.total ?? 0),
       );
   }, [estado.clientes, busca, tabela, porCliente]);
+
+  const colunas: ColunaLista<Cliente>[] = [
+    {
+      chave: "nome",
+      titulo: "Cliente",
+      papel: "titulo",
+      render: (c) => (
+        <span className="block max-w-[240px] truncate">{c.nomeRazao}</span>
+      ),
+    },
+    {
+      chave: "doc",
+      titulo: "CPF / CNPJ",
+      papel: "apoio",
+      render: (c) => <span className="mono text-suave">{c.cpfCnpj}</span>,
+    },
+    {
+      chave: "tabela",
+      titulo: "Tabela",
+      render: (c) => (
+        <Etiqueta tom={c.tipoPreco === "ATACADO" ? "marca" : "neutro"}>
+          {c.tipoPreco}
+        </Etiqueta>
+      ),
+    },
+    {
+      chave: "compras",
+      titulo: "Compras",
+      alinha: "right",
+      render: (c) => <>{porCliente.get(c.id)?.compras ?? 0}</>,
+    },
+    {
+      chave: "total",
+      titulo: "Total comprado",
+      alinha: "right",
+      papel: "destaque",
+      render: (c) => (
+        <span className="font-semibold text-tinta">
+          {moeda(porCliente.get(c.id)?.total ?? 0)}
+        </span>
+      ),
+    },
+    ...(podeVerLucro
+      ? [
+          {
+            chave: "lucro",
+            titulo: "Lucro gerado",
+            alinha: "right" as const,
+            render: (c: Cliente) => (
+              <span className="text-positivo">
+                {moeda(porCliente.get(c.id)?.lucro ?? 0)}
+              </span>
+            ),
+          },
+        ]
+      : []),
+    {
+      chave: "fiado",
+      titulo: "Fiado aberto",
+      alinha: "right",
+      render: (c) => {
+        const f = porCliente.get(c.id)?.fiado ?? 0;
+        return (
+          <span className={f ? "font-semibold text-negativo" : "text-suave"}>
+            {moeda(f)}
+          </span>
+        );
+      },
+    },
+  ];
+
+  function detalhe(c: Cliente) {
+    const vendas = estado.vendas.filter((v) => v.clienteId === c.id).slice(0, 6);
+    return (
+      <div className="grid gap-5 lg:grid-cols-2">
+        <div>
+          <p className="mb-1.5 text-[10.5px] font-bold uppercase tracking-[0.07em] text-suave">
+            Cadastro
+          </p>
+          <p className="text-[13px] leading-relaxed text-tinta2">
+            {c.endereco}
+            <br />
+            {c.telefone}
+            {c.email && (
+              <>
+                <br />
+                {c.email}
+              </>
+            )}
+            {c.inscricaoEstadual && (
+              <>
+                <br />
+                IE {c.inscricaoEstadual}
+              </>
+            )}
+            <br />
+            Limite de crédito: {moeda(c.limiteCredito)}
+          </p>
+        </div>
+        <div>
+          <p className="mb-1.5 text-[10.5px] font-bold uppercase tracking-[0.07em] text-suave">
+            Últimas compras
+          </p>
+          {vendas.length === 0 ? (
+            <p className="text-[13px] text-suave">Nenhuma compra registrada.</p>
+          ) : (
+            <ul className="space-y-1">
+              {vendas.map((v) => (
+                <li key={v.id} className="flex justify-between gap-3 text-[13px]">
+                  <Link
+                    href={`/vendas/${v.id}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-tinta2 hover:text-marca hover:underline"
+                  >
+                    {data(v.data)} · {v.itens.length} itens
+                  </Link>
+                  <span className="tabular font-medium">{moeda(v.total)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -68,7 +187,7 @@ export default function Clientes() {
         descricao="A tabela de preço do cadastro define se o cliente compra no atacado ou no varejo, em qualquer quantidade."
       />
 
-      <div className="nao-imprime mb-4 grid gap-2 sm:grid-cols-[1fr_200px]">
+      <div className="nao-imprime mb-4 grid gap-2 sm:grid-cols-[1fr_180px]">
         <Entrada
           placeholder="Buscar por nome, CPF/CNPJ ou telefone…"
           value={busca}
@@ -81,126 +200,13 @@ export default function Clientes() {
         </Selecao>
       </div>
 
-      <Rolagem>
-        <Tabela>
-          <thead>
-            <tr>
-              <Th />
-              <Th>Cliente</Th>
-              <Th>CPF / CNPJ</Th>
-              <Th>Tabela</Th>
-              <Th alinha="right">Compras</Th>
-              <Th alinha="right">Total comprado</Th>
-              {podeVerLucro && <Th alinha="right">Lucro gerado</Th>}
-              <Th alinha="right">Fiado aberto</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {lista.map((c) => {
-              const r = porCliente.get(c.id);
-              const expandido = aberto === c.id;
-              const vendas = estado.vendas
-                .filter((v) => v.clienteId === c.id)
-                .slice(0, 6);
-              return (
-                <Fragment key={c.id}>
-                  <tr
-                    className="transicao cursor-pointer hover:bg-superficie2/60"
-                    onClick={() => setAberto(expandido ? null : c.id)}
-                  >
-                    <Td className="w-8 text-suave">
-                      {expandido ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
-                    </Td>
-                    <Td className="max-w-[240px]">
-                      <span className="block truncate font-medium text-tinta">
-                        {c.nomeRazao}
-                      </span>
-                      <span className="text-[11.5px] text-suave">{c.telefone}</span>
-                    </Td>
-                    <Td className="mono text-suave">{c.cpfCnpj}</Td>
-                    <Td>
-                      <Etiqueta tom={c.tipoPreco === "ATACADO" ? "marca" : "neutro"}>
-                        {c.tipoPreco}
-                      </Etiqueta>
-                    </Td>
-                    <Td alinha="right">{r?.compras ?? 0}</Td>
-                    <Td alinha="right" className="font-semibold text-tinta">
-                      {moeda(r?.total ?? 0)}
-                    </Td>
-                    {podeVerLucro && (
-                      <Td alinha="right" className="text-positivo">
-                        {moeda(r?.lucro ?? 0)}
-                      </Td>
-                    )}
-                    <Td
-                      alinha="right"
-                      className={r?.fiado ? "font-semibold text-negativo" : "text-suave"}
-                    >
-                      {moeda(r?.fiado ?? 0)}
-                    </Td>
-                  </tr>
-                  {expandido && (
-                    <tr>
-                      <Td colSpan={podeVerLucro ? 8 : 7} className="bg-superficie2/40 p-0">
-                        <div className="grid gap-6 px-6 py-4 lg:grid-cols-2">
-                          <div>
-                            <p className="mb-1.5 text-[10.5px] font-bold uppercase tracking-[0.07em] text-suave">
-                              Cadastro
-                            </p>
-                            <p className="text-[13px] leading-relaxed text-tinta2">
-                              {c.endereco}
-                              <br />
-                              {c.email ?? "sem e-mail"}
-                              {c.inscricaoEstadual && (
-                                <>
-                                  <br />
-                                  IE {c.inscricaoEstadual}
-                                </>
-                              )}
-                              <br />
-                              Limite de crédito: {moeda(c.limiteCredito)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="mb-1.5 text-[10.5px] font-bold uppercase tracking-[0.07em] text-suave">
-                              Últimas compras
-                            </p>
-                            {vendas.length === 0 ? (
-                              <p className="text-[13px] text-suave">
-                                Nenhuma compra registrada.
-                              </p>
-                            ) : (
-                              <ul className="space-y-1">
-                                {vendas.map((v) => (
-                                  <li
-                                    key={v.id}
-                                    className="flex justify-between gap-3 text-[13px]"
-                                  >
-                                    <Link
-                                      href={`/vendas/${v.id}`}
-                                      className="text-tinta2 hover:text-marca hover:underline"
-                                    >
-                                      {data(v.data)} · {v.itens.length} itens
-                                    </Link>
-                                    <span className="tabular font-medium">
-                                      {moeda(v.total)}
-                                    </span>
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
-                          </div>
-                        </div>
-                      </Td>
-                    </tr>
-                  )}
-                </Fragment>
-              );
-            })}
-          </tbody>
-        </Tabela>
-        {lista.length === 0 && <Vazio>Nenhum cliente encontrado.</Vazio>}
-      </Rolagem>
+      <Lista
+        colunas={colunas}
+        linhas={lista}
+        chave={(c) => c.id}
+        detalhe={detalhe}
+        vazio="Nenhum cliente encontrado."
+      />
 
       <Cartao className="mt-4">
         <p className="text-[13px] leading-relaxed text-tinta2">
