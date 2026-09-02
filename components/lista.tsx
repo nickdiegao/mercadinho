@@ -25,7 +25,9 @@ export type PapelColuna =
   /** entra na grade de rotulo + valor */
   | "normal"
   /** aparece so na tabela, some no celular */
-  | "sóTabela";
+  | "sóTabela"
+  /** aparece so no cartao do celular, some na tabela */
+  | "sóCartao";
 
 export interface ColunaLista<T> {
   chave: string;
@@ -61,11 +63,16 @@ export function Lista<T>({
     setAberta((atual) => (atual === id ? null : id));
 
   const titulo = colunas.find((c) => c.papel === "titulo") ?? colunas[0];
-  const apoio = colunas.filter((c) => c.papel === "apoio");
+  // sóCartao entra como linha de apoio: existe justamente para aparecer
+  // aqui e sumir da tabela
+  const apoio = colunas.filter(
+    (c) => c.papel === "apoio" || c.papel === "sóCartao",
+  );
   const destaque = colunas.find((c) => c.papel === "destaque");
-  const normais = colunas.filter(
-    (c) => !c.papel || c.papel === "normal",
-  ).filter((c) => c !== titulo);
+  const normais = colunas
+    .filter((c) => !c.papel || c.papel === "normal")
+    .filter((c) => c !== titulo);
+  const daTabela = colunas.filter((c) => c.papel !== "sóCartao");
 
   if (linhas.length === 0) {
     return (
@@ -167,7 +174,7 @@ export function Lista<T>({
           <thead>
             <tr>
               {expansivel && <Cabeca className="w-8" />}
-              {colunas.map((c) => (
+              {daTabela.map((c) => (
                 <Cabeca key={c.chave} alinha={c.alinha}>
                   {c.titulo}
                 </Cabeca>
@@ -196,7 +203,7 @@ export function Lista<T>({
                         )}
                       </Celula>
                     )}
-                    {colunas.map((c) => (
+                    {daTabela.map((c) => (
                       <Celula key={c.chave} alinha={c.alinha}>
                         {c.render(linha)}
                       </Celula>
@@ -205,7 +212,7 @@ export function Lista<T>({
                   {expansivel && expandida && (
                     <tr>
                       <td
-                        colSpan={colunas.length + 1}
+                        colSpan={daTabela.length + 1}
                         className="border-b border-borda bg-superficie2/40 px-5 py-4"
                       >
                         {detalhe!(linha)}

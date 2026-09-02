@@ -138,8 +138,8 @@ export default function NovaVenda() {
         descricao="Busque pelo nome, código ou SKU. O preço de atacado entra sozinho quando a quantidade bate."
       />
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_330px]">
-        <div className="flex flex-col gap-4">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_330px]">
+        <div className="flex min-w-0 flex-col gap-4">
           <Cartao>
             <div className="relative">
               <Search

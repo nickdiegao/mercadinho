@@ -14,11 +14,7 @@ import {
   Campo,
   Cartao,
   Entrada,
-  Rolagem,
   Selecao,
-  Tabela,
-  Td,
-  Th,
   TituloCartao,
 } from "@/components/ui";
 
@@ -47,7 +43,9 @@ export default function NovaEntrada() {
     const t = busca.trim().toLowerCase();
     if (!t) return [];
     return compraveis
-      .filter((p) => p.nome.toLowerCase().includes(t) || p.sku.toLowerCase().includes(t))
+      .filter(
+        (p) => p.nome.toLowerCase().includes(t) || p.sku.toLowerCase().includes(t),
+      )
       .slice(0, 7);
   }, [busca, compraveis]);
 
@@ -72,7 +70,8 @@ export default function NovaEntrada() {
   });
 
   const total = itens.reduce((a, i) => a + i.total, 0);
-  const valido = itens.length > 0 && itens.every((i) => i.custoUnitCompra > 0 && i.qtdCompra > 0);
+  const valido =
+    itens.length > 0 && itens.every((i) => i.custoUnitCompra > 0 && i.qtdCompra > 0);
 
   function adicionar(p: Produto) {
     setLinhas((ls) => {
@@ -82,13 +81,23 @@ export default function NovaEntrada() {
         {
           produtoId: p.id,
           qtdCompra: 1,
-          custoTexto: (p.custoUltimaCompra * p.fatorConversao / 10000).toFixed(2).replace(".", ","),
+          custoTexto: ((p.custoUltimaCompra * p.fatorConversao) / 10000)
+            .toFixed(2)
+            .replace(".", ","),
         },
       ];
     });
     setBusca("");
     buscaRef.current?.focus();
   }
+
+  const mudar = (produtoId: string, campo: keyof Linha, valor: string | number) =>
+    setLinhas((ls) =>
+      ls.map((l) => (l.produtoId === produtoId ? { ...l, [campo]: valor } : l)),
+    );
+
+  const remover = (produtoId: string) =>
+    setLinhas((ls) => ls.filter((l) => l.produtoId !== produtoId));
 
   function finalizar() {
     if (!valido) return;
@@ -104,6 +113,9 @@ export default function NovaEntrada() {
     router.push("/entradas");
   }
 
+  const campoNum =
+    "tabular w-full rounded border border-borda px-2 py-1.5 text-right text-sm focus:border-marca focus:outline-none";
+
   return (
     <>
       <Cabecalho
@@ -111,8 +123,8 @@ export default function NovaEntrada() {
         descricao="Lance a carga em caixa, fardo ou engradado. O sistema converte para unidade e recalcula o custo médio."
       />
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-        <div className="flex flex-col gap-4">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="flex min-w-0 flex-col gap-4">
           <Cartao>
             <div className="grid gap-3 sm:grid-cols-2">
               <Campo rotulo="Fornecedor">
@@ -127,7 +139,10 @@ export default function NovaEntrada() {
                   ))}
                 </Selecao>
               </Campo>
-              <Campo rotulo="Documento do fornecedor" dica="Número da nota que veio com a carga">
+              <Campo
+                rotulo="Documento do fornecedor"
+                dica="Número da nota que veio com a carga"
+              >
                 <Entrada
                   value={documento}
                   onChange={(e) => setDocumento(e.target.value)}
@@ -160,7 +175,9 @@ export default function NovaEntrada() {
                   <li key={p.id}>
                     <button
                       onClick={() => adicionar(p)}
-                      className={`transicao flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-marca-clara ${i === 0 ? "bg-superficie2/60" : ""}`}
+                      className={`transicao flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-marca-clara ${
+                        i === 0 ? "bg-superficie2/60" : ""
+                      }`}
                     >
                       <span className="min-w-0">
                         <span className="block truncate text-[13.5px] font-medium">
@@ -171,7 +188,7 @@ export default function NovaEntrada() {
                           {p.fatorConversao} un
                         </span>
                       </span>
-                      <span className="shrink-0 text-[11.5px] text-suave">
+                      <span className="hidden shrink-0 text-[11.5px] text-suave sm:block">
                         custo médio {custoCurto(p.custoMedio)}
                       </span>
                     </button>
@@ -182,106 +199,163 @@ export default function NovaEntrada() {
           </Cartao>
 
           {itens.length > 0 && (
-            <Cartao padding={false}>
-              <Rolagem>
-                <Tabela>
+            <>
+              {/* ------------------------------------------- celular */}
+              <ul className="flex flex-col gap-2 md:hidden">
+                {itens.map((i) => (
+                  <li
+                    key={i.produtoId}
+                    className="rounded-lg border border-borda bg-superficie p-3.5"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-[14px] font-semibold text-tinta">
+                          {i.produto.nome}
+                        </p>
+                        <p className="text-[11.5px] text-suave">
+                          {i.produto.unidadeCompra} com {i.produto.fatorConversao} un
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => remover(i.produtoId)}
+                        className="transicao shrink-0 rounded-md p-1.5 text-suave hover:bg-alerta-claro hover:text-alerta"
+                        aria-label={`Remover ${i.produto.nome}`}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-3">
+                      <label className="block">
+                        <span className="mb-1 block text-[10px] font-bold uppercase tracking-[0.06em] text-suave">
+                          Qtd em {i.produto.unidadeCompra}
+                        </span>
+                        <input
+                          value={i.qtdCompra}
+                          onChange={(e) =>
+                            mudar(i.produtoId, "qtdCompra", Number(e.target.value) || 0)
+                          }
+                          inputMode="numeric"
+                          className={campoNum}
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="mb-1 block text-[10px] font-bold uppercase tracking-[0.06em] text-suave">
+                          Custo por {i.produto.unidadeCompra} (R$)
+                        </span>
+                        <input
+                          value={i.custoTexto}
+                          onChange={(e) =>
+                            mudar(i.produtoId, "custoTexto", e.target.value)
+                          }
+                          inputMode="decimal"
+                          className={campoNum}
+                        />
+                      </label>
+                    </div>
+
+                    <div className="mt-3 flex items-baseline justify-between gap-3 border-t border-borda pt-2.5">
+                      <span className="text-[11.5px] text-suave">
+                        vira {numero(i.qtdBase)} un ·{" "}
+                        {custoCurto(i.custoUnitBase)}/un
+                      </span>
+                      <span className="tabular text-[15px] font-semibold text-tinta">
+                        {moeda(i.total)}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+
+              {/* ------------------------------------------- desktop */}
+              <div className="hidden overflow-x-auto rounded-lg border border-borda bg-superficie md:block">
+                <table className="w-full text-sm">
                   <thead>
                     <tr>
-                      <Th>Produto</Th>
-                      <Th alinha="right">Qtd</Th>
-                      <Th alinha="right">Custo por {"embalagem"}</Th>
-                      <Th alinha="right">Vira</Th>
-                      <Th alinha="right">Total</Th>
-                      <Th />
+                      <Cab>Produto</Cab>
+                      <Cab alinha="right">Qtd</Cab>
+                      <Cab alinha="right">Custo por embalagem</Cab>
+                      <Cab alinha="right">Vira</Cab>
+                      <Cab alinha="right">Total</Cab>
+                      <Cab />
                     </tr>
                   </thead>
                   <tbody>
                     {itens.map((i) => (
                       <tr key={i.produtoId}>
-                        <Td className="max-w-[220px]">
+                        <Cel className="max-w-[220px]">
                           <span className="block truncate font-medium text-tinta">
                             {i.produto.nome}
                           </span>
                           <span className="text-[11.5px] text-suave">
                             {i.produto.unidadeCompra} com {i.produto.fatorConversao} un
                           </span>
-                        </Td>
-                        <Td alinha="right">
+                        </Cel>
+                        <Cel alinha="right">
                           <input
                             value={i.qtdCompra}
                             onChange={(e) =>
-                              setLinhas((ls) =>
-                                ls.map((l) =>
-                                  l.produtoId === i.produtoId
-                                    ? { ...l, qtdCompra: Number(e.target.value) || 0 }
-                                    : l,
-                                ),
-                              )
+                              mudar(i.produtoId, "qtdCompra", Number(e.target.value) || 0)
                             }
-                            className="tabular w-16 rounded border border-borda px-2 py-1 text-right text-sm focus:border-marca focus:outline-none"
+                            inputMode="numeric"
+                            aria-label={`Quantidade de ${i.produto.nome}`}
+                            className={`${campoNum} w-16`}
                           />
-                        </Td>
-                        <Td alinha="right">
+                        </Cel>
+                        <Cel alinha="right">
                           <input
                             value={i.custoTexto}
                             onChange={(e) =>
-                              setLinhas((ls) =>
-                                ls.map((l) =>
-                                  l.produtoId === i.produtoId
-                                    ? { ...l, custoTexto: e.target.value }
-                                    : l,
-                                ),
-                              )
+                              mudar(i.produtoId, "custoTexto", e.target.value)
                             }
                             inputMode="decimal"
-                            className="tabular w-24 rounded border border-borda px-2 py-1 text-right text-sm focus:border-marca focus:outline-none"
+                            aria-label={`Custo de ${i.produto.nome}`}
+                            className={`${campoNum} w-24`}
                           />
-                        </Td>
-                        <Td alinha="right" className="text-suave">
+                        </Cel>
+                        <Cel alinha="right" className="text-suave">
                           {numero(i.qtdBase)} un
                           <br />
                           <span className="text-[11px]">
                             {custoCurto(i.custoUnitBase)}/un
                           </span>
-                        </Td>
-                        <Td alinha="right" className="font-semibold text-tinta">
+                        </Cel>
+                        <Cel alinha="right" className="font-semibold text-tinta">
                           {moeda(i.total)}
-                        </Td>
-                        <Td>
+                        </Cel>
+                        <Cel>
                           <button
-                            onClick={() =>
-                              setLinhas((ls) => ls.filter((l) => l.produtoId !== i.produtoId))
-                            }
+                            onClick={() => remover(i.produtoId)}
                             className="transicao rounded p-1.5 text-suave hover:bg-alerta-claro hover:text-alerta"
-                            aria-label="Remover"
+                            aria-label={`Remover ${i.produto.nome}`}
                           >
                             <Trash2 size={14} />
                           </button>
-                        </Td>
+                        </Cel>
                       </tr>
                     ))}
                   </tbody>
-                </Tabela>
-              </Rolagem>
-            </Cartao>
+                </table>
+              </div>
+            </>
           )}
         </div>
 
-        <div className="flex flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-4">
           <Cartao>
             <TituloCartao>Resumo</TituloCartao>
             <dl className="space-y-2 text-[13.5px]">
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3">
                 <dt className="text-suave">Itens</dt>
                 <dd className="tabular">{itens.length}</dd>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3">
                 <dt className="text-suave">Unidades que entram</dt>
                 <dd className="tabular">
                   {numero(itens.reduce((a, i) => a + i.qtdBase, 0))}
                 </dd>
               </div>
-              <div className="flex items-baseline justify-between border-t border-borda pt-2.5">
+              <div className="flex items-baseline justify-between gap-3 border-t border-borda pt-2.5">
                 <dt className="font-bold text-tinta">Total da carga</dt>
                 <dd className="tabular text-xl font-semibold text-tinta">
                   {moeda(total)}
@@ -306,13 +380,16 @@ export default function NovaEntrada() {
                   const subiu = i.cmpDepois > i.cmpAntes;
                   const mudou = i.cmpDepois !== i.cmpAntes;
                   return (
-                    <li key={i.produtoId} className="border-b border-borda pb-3 last:border-b-0 last:pb-0">
+                    <li
+                      key={i.produtoId}
+                      className="border-b border-borda pb-3 last:border-b-0 last:pb-0"
+                    >
                       <p className="truncate text-[12.5px] font-medium text-tinta">
                         {i.produto.nome}
                       </p>
                       <p className="tabular mt-1 flex items-center gap-1.5 text-[13px]">
                         <span className="text-suave">{custoCurto(i.cmpAntes)}</span>
-                        <ArrowRight size={12} className="text-suave" />
+                        <ArrowRight size={12} className="shrink-0 text-suave" />
                         <span
                           className={
                             !mudou
@@ -344,5 +421,43 @@ export default function NovaEntrada() {
         </div>
       </div>
     </>
+  );
+}
+
+function Cab({
+  children,
+  alinha = "left",
+}: {
+  children?: React.ReactNode;
+  alinha?: "left" | "right";
+}) {
+  return (
+    <th
+      className={`whitespace-nowrap border-b border-borda2 bg-superficie2 px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.06em] text-suave ${
+        alinha === "right" ? "text-right" : "text-left"
+      }`}
+    >
+      {children}
+    </th>
+  );
+}
+
+function Cel({
+  children,
+  alinha = "left",
+  className = "",
+}: {
+  children?: React.ReactNode;
+  alinha?: "left" | "right";
+  className?: string;
+}) {
+  return (
+    <td
+      className={`border-b border-borda px-4 py-2.5 align-middle text-tinta2 ${
+        alinha === "right" ? "tabular text-right" : "text-left"
+      } ${className}`}
+    >
+      {children}
+    </td>
   );
 }

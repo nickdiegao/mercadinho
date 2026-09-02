@@ -242,8 +242,8 @@ export default function Caixa() {
         </Aviso>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_330px]">
-        <div className="order-2 lg:order-1">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_330px]">
+        <div className="order-2 min-w-0 lg:order-1">
           <div className="mb-3">
             <TituloCartao
               extra={

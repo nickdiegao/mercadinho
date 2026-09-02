@@ -1,83 +1,200 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo } from "react";
+import { PackagePlus } from "lucide-react";
 import { useEstado } from "@/lib/store";
-import { moeda, data } from "@/lib/formato";
-import {
-  Cabecalho,
-  Cartao,
-  Rolagem,
-  Tabela,
-  Td,
-  Th,
-  Vazio,
-} from "@/components/ui";
+import { moeda, numero, data } from "@/lib/formato";
+import { Lista, SubLista, type ColunaLista, type ColunaSub } from "@/components/lista";
+import type { Entrada, Fornecedor } from "@/lib/tipos";
+import { Cabecalho, Cartao } from "@/components/ui";
 
 export default function Fornecedores() {
   const { estado } = useEstado();
 
   const resumo = useMemo(() => {
-    const acc = new Map<string, { cargas: number; total: number; ultima: string }>();
+    const acc = new Map<
+      string,
+      { cargas: number; total: number; ultima: string; itens: number }
+    >();
     for (const e of estado.entradas) {
-      const a = acc.get(e.fornecedorId) ?? { cargas: 0, total: 0, ultima: e.data };
+      const a =
+        acc.get(e.fornecedorId) ??
+        { cargas: 0, total: 0, ultima: e.data, itens: 0 };
       a.cargas += 1;
       a.total += e.valorTotal;
+      a.itens += e.itens.reduce((s, i) => s + i.qtdBase, 0);
       if (e.data > a.ultima) a.ultima = e.data;
       acc.set(e.fornecedorId, a);
     }
     return acc;
   }, [estado.entradas]);
 
+  const ordenados = useMemo(
+    () =>
+      [...estado.fornecedores].sort(
+        (a, b) => (resumo.get(b.id)?.total ?? 0) - (resumo.get(a.id)?.total ?? 0),
+      ),
+    [estado.fornecedores, resumo],
+  );
+
+  const colunas: ColunaLista<Fornecedor>[] = [
+    {
+      chave: "razao",
+      titulo: "Fornecedor",
+      papel: "titulo",
+      render: (f) => (
+        <span className="block max-w-[300px]">
+          <span className="block truncate">{f.razaoSocial}</span>
+          <span className="hidden truncate text-[11.5px] font-normal text-suave md:block">
+            {f.endereco}
+          </span>
+        </span>
+      ),
+    },
+    {
+      chave: "endereco",
+      titulo: "Endereço",
+      papel: "sóCartao",
+      render: (f) => <>{f.endereco}</>,
+    },
+    {
+      chave: "cnpj",
+      titulo: "CNPJ",
+      render: (f) => <span className="mono text-suave">{f.cnpj}</span>,
+    },
+    {
+      chave: "contato",
+      titulo: "Contato",
+      render: (f) => (
+        <span className="block min-w-0 text-suave">
+          <span className="block truncate">{f.telefone}</span>
+          <span className="block truncate text-[11.5px]">{f.email}</span>
+        </span>
+      ),
+    },
+    {
+      chave: "cargas",
+      titulo: "Cargas",
+      alinha: "right",
+      render: (f) => <>{resumo.get(f.id)?.cargas ?? 0}</>,
+    },
+    {
+      chave: "total",
+      titulo: "Total comprado",
+      alinha: "right",
+      papel: "destaque",
+      render: (f) => (
+        <span className="font-semibold text-tinta">
+          {moeda(resumo.get(f.id)?.total ?? 0)}
+        </span>
+      ),
+    },
+    {
+      chave: "ultima",
+      titulo: "Última carga",
+      alinha: "right",
+      render: (f) => {
+        const r = resumo.get(f.id);
+        return <span className="text-suave">{r ? data(r.ultima) : "—"}</span>;
+      },
+    },
+  ];
+
+  function detalhe(f: Fornecedor) {
+    const cargas = estado.entradas
+      .filter((e) => e.fornecedorId === f.id)
+      .slice(0, 6);
+
+    if (cargas.length === 0) {
+      return (
+        <p className="text-[13px] text-suave">
+          Nenhuma carga registrada deste fornecedor no período.
+        </p>
+      );
+    }
+
+    return (
+      <div>
+        <SubLista
+          itens={cargas}
+          chave={(e) => e.id}
+          colunas={
+            [
+              {
+                chave: "documento",
+                titulo: "Documento",
+                papel: "titulo",
+                render: (e) => (
+                  <>
+                    {e.documentoFornecedor}
+                    <span className="ml-2 font-normal text-suave">
+                      nº {String(e.numero).padStart(4, "0")}
+                    </span>
+                  </>
+                ),
+              },
+              {
+                chave: "data",
+                titulo: "Data",
+                papel: "apoio",
+                render: (e) => data(e.data),
+              },
+              {
+                chave: "itens",
+                titulo: "Itens",
+                alinha: "right",
+                render: (e) => (
+                  <>
+                    {e.itens.length} ·{" "}
+                    {numero(e.itens.reduce((a, i) => a + i.qtdBase, 0))} un
+                  </>
+                ),
+              },
+              {
+                chave: "valor",
+                titulo: "Valor",
+                alinha: "right",
+                papel: "destaque",
+                render: (e) => (
+                  <span className="font-semibold text-tinta">
+                    {moeda(e.valorTotal)}
+                  </span>
+                ),
+              },
+            ] as ColunaSub<Entrada>[]
+          }
+        />
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-borda pt-3">
+          <span className="text-[12px] text-suave">
+            {numero(resumo.get(f.id)?.itens ?? 0)} unidades compradas no total
+          </span>
+          <Link
+            href="/entradas/nova"
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-marca hover:underline"
+          >
+            <PackagePlus size={13} /> Lançar nova carga
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <Cabecalho
         titulo="Fornecedores"
-        descricao="Cadastro deliberadamente enxuto — o que importa aqui é o histórico de compras, que é de onde vem o custo."
+        descricao="Cadastro deliberadamente enxuto. Toque num fornecedor para ver as últimas cargas — é de onde vem o custo."
       />
 
-      <Rolagem>
-        <Tabela>
-          <thead>
-            <tr>
-              <Th>Fornecedor</Th>
-              <Th>CNPJ</Th>
-              <Th>Contato</Th>
-              <Th alinha="right">Cargas</Th>
-              <Th alinha="right">Total comprado</Th>
-              <Th alinha="right">Última carga</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {estado.fornecedores.map((f) => {
-              const r = resumo.get(f.id);
-              return (
-                <tr key={f.id} className="transicao hover:bg-superficie2/60">
-                  <Td className="max-w-[280px]">
-                    <span className="block truncate font-medium text-tinta">
-                      {f.razaoSocial}
-                    </span>
-                    <span className="text-[11.5px] text-suave">{f.endereco}</span>
-                  </Td>
-                  <Td className="mono text-suave">{f.cnpj}</Td>
-                  <Td className="text-suave">
-                    {f.telefone}
-                    <br />
-                    <span className="text-[11.5px]">{f.email}</span>
-                  </Td>
-                  <Td alinha="right">{r?.cargas ?? 0}</Td>
-                  <Td alinha="right" className="font-semibold text-tinta">
-                    {moeda(r?.total ?? 0)}
-                  </Td>
-                  <Td alinha="right" className="text-suave">
-                    {r ? data(r.ultima) : "—"}
-                  </Td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </Tabela>
-        {estado.fornecedores.length === 0 && <Vazio>Nenhum fornecedor cadastrado.</Vazio>}
-      </Rolagem>
+      <Lista
+        colunas={colunas}
+        linhas={ordenados}
+        chave={(f) => f.id}
+        detalhe={detalhe}
+        vazio="Nenhum fornecedor cadastrado."
+      />
 
       <Cartao className="mt-4">
         <p className="text-[13px] leading-relaxed text-tinta2">
