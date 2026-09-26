@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useDeferredValue, useMemo, useState } from "react";
 import { AlertTriangle, ArrowDownToLine, Beer, Plus } from "lucide-react";
 import { useEstado, usePerfil } from "@/lib/store";
-import { estoqueValorizado } from "@/lib/regras";
+import { aguardandoEntrada, estoqueValorizado, precisaRepor, semCusto } from "@/lib/regras";
 import { moeda, numero, custoCurto } from "@/lib/formato";
 import { Lista, type ColunaLista } from "@/components/lista";
 import type { Produto } from "@/lib/tipos";
@@ -44,7 +44,7 @@ export default function Estoque() {
     const t = buscaAdiada.trim().toLowerCase();
     return normais
       .filter((p) => {
-        if (filtro === "baixo" && p.saldoAtual > p.estoqueMinimo) return false;
+        if (filtro === "baixo" && !precisaRepor(p)) return false;
         if (filtro && filtro !== "baixo" && p.categoriaId !== filtro) return false;
         if (!t) return true;
         return (
@@ -58,7 +58,7 @@ export default function Estoque() {
       );
   }, [normais, buscaAdiada, filtro]);
 
-  const abaixo = normais.filter((p) => p.saldoAtual <= p.estoqueMinimo);
+  const abaixo = normais.filter(precisaRepor);
 
   const colunas: ColunaLista<Produto>[] = [
     {
@@ -81,10 +81,11 @@ export default function Estoque() {
       render: (p) => (
         <span className="flex items-center gap-1.5 text-suave">
           {catPorId.get(p.categoriaId)}
-          {podeVerCusto && p.custoMedio <= 0 && (
+          {aguardandoEntrada(p) && <Etiqueta>aguarda 1ª entrada</Etiqueta>}
+          {podeVerCusto && semCusto(p) && (
             <Etiqueta tom="negativo">sem custo</Etiqueta>
           )}
-          {p.saldoAtual <= p.estoqueMinimo && (
+          {precisaRepor(p) && (
             <Etiqueta tom="alerta">
               <AlertTriangle size={10} className="mr-1" /> repor
             </Etiqueta>
@@ -100,7 +101,7 @@ export default function Estoque() {
       render: (p) => (
         <span
           className={
-            p.saldoAtual <= p.estoqueMinimo
+            precisaRepor(p)
               ? "font-semibold text-alerta"
               : "font-semibold text-tinta"
           }

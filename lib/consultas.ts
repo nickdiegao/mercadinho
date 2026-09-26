@@ -1,6 +1,6 @@
 /** Leituras derivadas do estado. Nada aqui grava — so soma. */
 
-import { custoItem, entraNoCaixa, estoqueValorizado } from "./regras";
+import { custoItem, entraNoCaixa, estoqueValorizado, precisaRepor } from "./regras";
 import type { Estado, Produto, TipoPreco, Venda } from "./tipos";
 
 const DIA = 86400000;
@@ -229,7 +229,7 @@ export function resumoPainel(estado: Estado) {
     mes: totais(doMes),
     estoque: estoqueValorizado(normais),
     itensEstoque: normais.reduce((a, p) => a + p.saldoAtual, 0),
-    abaixoMinimo: normais.filter((p) => p.saldoAtual <= p.estoqueMinimo),
+    abaixoMinimo: normais.filter(precisaRepor),
     cascos: cascosNaRua(estado),
     caixa: resumoCaixa(estado),
     fiadoAberto: estado.vendas

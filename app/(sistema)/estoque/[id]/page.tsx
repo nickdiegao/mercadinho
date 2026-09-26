@@ -6,7 +6,7 @@ import { ArrowLeft, SlidersHorizontal } from "lucide-react";
 import { useEstado, usePerfil } from "@/lib/store";
 import { extrato } from "@/lib/consultas";
 import { moeda, numero, custoCurto, moeda4, dataHora } from "@/lib/formato";
-import { margem } from "@/lib/regras";
+import { margem, precisaRepor } from "@/lib/regras";
 import type { Estado, TipoMovimento } from "@/lib/tipos";
 import {
   Aviso,
@@ -149,7 +149,7 @@ export default function Kardex({ params }: { params: Promise<{ id: string }> }) 
             className={`tabular mt-2 text-[26px] font-semibold leading-none ${
               casco
                 ? "text-casco"
-                : produto.saldoAtual <= produto.estoqueMinimo
+                : precisaRepor(produto)
                   ? "text-alerta"
                   : "text-tinta"
             }`}
@@ -293,7 +293,15 @@ export default function Kardex({ params }: { params: Promise<{ id: string }> }) 
               })}
             </tbody>
           </Tabela>
-          {movs.length === 0 && <Vazio>Nenhuma movimentação registrada.</Vazio>}
+          {movs.length === 0 && (
+            <Vazio>
+              Nenhuma movimentação ainda. O produto aguarda a primeira entrada —{" "}
+              <Link href="/entradas/nova" className="font-semibold text-marca hover:underline">
+                lançar agora
+              </Link>
+              .
+            </Vazio>
+          )}
         </Rolagem>
       </Cartao>
     </>

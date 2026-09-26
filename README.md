@@ -111,6 +111,11 @@ o gelado não, o cadastro avisa e a lista de produtos marca o item.
 | Fornecedor | admin e estoque | CNPJ obrigatório, com consulta à Receita |
 | Cliente | admin e caixa | Tabela de preço e limite de fiado, só a admin |
 
+Produto pode ser cadastrado antes de chegar: o formulário pergunta se já tem no
+depósito. Com **Ainda não**, ele nasce com saldo zero e a etiqueta **aguarda 1ª
+entrada** — não é pendência, o custo vem na primeira carga. **Sem custo** só
+acusa quando há saldo sem custo, e **repor** só quando existe um mínimo definido.
+
 Nada é apagado: cadastro sai de uso com **Desativar** e volta com **Reativar**,
 para o histórico nunca perder a referência. CPF e CNPJ são conferidos pelo
 dígito verificador. A consulta à Receita (BrasilAPI) envia só o CNPJ — CPF é
@@ -138,6 +143,7 @@ components/
   modal.tsx             painel lateral onde abrem os cadastros
   form-*.tsx            cadastro de produto, cliente e fornecedor
 docs/                   blueprint, roteiro de perguntas e manual de uso
+  fonte-manual/         prints e gerador do manual em PDF
 ```
 
 ## Desempenho

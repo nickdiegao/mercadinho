@@ -68,7 +68,7 @@ export default function Fornecedores() {
     {
       chave: "cnpj",
       titulo: "CNPJ",
-      render: (f) => <span className="mono text-suave">{f.cnpj}</span>,
+      render: (f) => <span className="mono whitespace-nowrap text-suave">{f.cnpj}</span>,
     },
     {
       chave: "contato",

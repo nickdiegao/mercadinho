@@ -76,7 +76,7 @@ export default function Clientes() {
       chave: "doc",
       titulo: "CPF / CNPJ",
       papel: "apoio",
-      render: (c) => <span className="mono text-suave">{c.cpfCnpj}</span>,
+      render: (c) => <span className="mono whitespace-nowrap text-suave">{c.cpfCnpj}</span>,
     },
     {
       chave: "tabela",

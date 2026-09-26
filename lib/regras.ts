@@ -166,8 +166,31 @@ export function estoqueValorizado(produtos: Produto[]): number {
   );
 }
 
+/**
+ * Precisa repor. Minimo zero quer dizer que ninguem definiu um minimo, entao
+ * o produto so acusa se o saldo ficar negativo — senao todo cadastro novo, que
+ * nasce com saldo 0 e minimo 0, apareceria como "repor".
+ */
+export function precisaRepor(p: Produto): boolean {
+  return p.saldoAtual < 0 || (p.estoqueMinimo > 0 && p.saldoAtual <= p.estoqueMinimo);
+}
+
+/**
+ * Cadastrado e ainda sem nenhuma mercadoria. Nao e pendencia: o custo nasce
+ * na primeira entrada (regra 2), e ate la nao ha o que vender.
+ */
+export function aguardandoEntrada(p: Produto): boolean {
+  return p.custoMedio <= 0 && p.saldoAtual <= 0;
+}
+
+/**
+ * Tem saldo mas nao tem custo. Esse sim e problema: toda venda dele sai com
+ * lucro inflado, porque o custo entra como zero.
+ */
+export function semCusto(p: Produto): boolean {
+  return p.custoMedio <= 0 && p.saldoAtual > 0;
+}
+
 export function abaixoDoMinimo(produtos: Produto[]): Produto[] {
-  return produtos.filter(
-    (p) => p.ativo && p.tipo === "NORMAL" && p.saldoAtual <= p.estoqueMinimo,
-  );
+  return produtos.filter((p) => p.ativo && p.tipo === "NORMAL" && precisaRepor(p));
 }

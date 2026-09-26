@@ -4,7 +4,14 @@ import { useDeferredValue, useMemo, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, ExternalLink, Pencil, Plus, Snowflake } from "lucide-react";
 import { useEstado, usePerfil } from "@/lib/store";
-import { margem, markup, podeGelar } from "@/lib/regras";
+import {
+  aguardandoEntrada,
+  margem,
+  markup,
+  podeGelar,
+  precisaRepor,
+  semCusto,
+} from "@/lib/regras";
 import { moeda, numero, custoCurto, moeda4 } from "@/lib/formato";
 import { Lista, type ColunaLista } from "@/components/lista";
 import { FormProduto } from "@/components/form-produto";
@@ -48,7 +55,7 @@ export default function Produtos() {
   }, [estado.produtos, buscaAdiada, categoria]);
 
   const pendentes = estado.produtos.filter(
-    (p) => p.tipo === "NORMAL" && (p.precoVarejo <= 0 || p.custoMedio <= 0),
+    (p) => p.tipo === "NORMAL" && p.ativo && (p.precoVarejo <= 0 || semCusto(p)),
   );
 
   const colunas: ColunaLista<Produto>[] = [
@@ -68,7 +75,8 @@ export default function Produtos() {
           <span className="mono">{p.sku}</span>
           {p.vasilhameId && <Etiqueta tom="casco">casco</Etiqueta>}
           {p.precoVarejo <= 0 && <Etiqueta tom="alerta">sem preço</Etiqueta>}
-          {podeVerCusto && p.custoMedio <= 0 && (
+          {aguardandoEntrada(p) && <Etiqueta>aguarda 1ª entrada</Etiqueta>}
+          {podeVerCusto && semCusto(p) && (
             <Etiqueta tom="negativo">sem custo</Etiqueta>
           )}
         </span>
@@ -173,7 +181,7 @@ export default function Produtos() {
       titulo: "Saldo",
       alinha: "right",
       render: (p) => (
-        <span className={p.saldoAtual <= p.estoqueMinimo ? "font-semibold text-alerta" : ""}>
+        <span className={precisaRepor(p) ? "font-semibold text-alerta" : ""}>
           {numero(p.saldoAtual)}
         </span>
       ),
@@ -226,9 +234,15 @@ export default function Produtos() {
             administradora definir o preço.
           </p>
         )}
-        {podeVerCusto && p.custoMedio <= 0 && (
+        {aguardandoEntrada(p) && (
+          <p className="mt-3 rounded-md bg-superficie2 px-3 py-2 text-[12.5px] text-tinta2">
+            Aguardando a primeira entrada. Não é erro: o saldo e o custo nascem
+            quando a mercadoria chegar, em Entradas → Nova entrada.
+          </p>
+        )}
+        {podeVerCusto && semCusto(p) && (
           <p className="mt-3 rounded-md bg-negativo-claro px-3 py-2 text-[12.5px] text-negativo">
-            Sem custo ainda: lance a primeira entrada deste produto, senão o
+            Tem saldo, mas sem custo: lance uma entrada deste produto, senão o
             lucro das vendas dele aparece inflado.
           </p>
         )}
@@ -278,9 +292,9 @@ export default function Produtos() {
       {pendentes.length > 0 && ehAdmin && (
         <div className="mb-4">
           <Aviso tom="alerta" titulo={`${pendentes.length} produto${pendentes.length === 1 ? "" : "s"} com cadastro incompleto`}>
-            Sem preço de venda ou sem custo. Produto sem preço não pode ser
-            vendido; produto sem custo faz o lucro aparecer inflado até a
-            primeira entrada.
+            Sem preço de venda, ou com saldo e sem custo. Produto sem preço não
+            pode ser vendido; com saldo e sem custo, o lucro das vendas dele
+            aparece inflado.
           </Aviso>
         </div>
       )}

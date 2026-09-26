@@ -160,6 +160,12 @@ export default function Recibo({ params }: { params: Promise<{ id: string }> }) 
               {numeroDoc}
             </p>
             <p className="mt-1.5 text-[11.5px] text-tinta2">{dataHora(venda.data)}</p>
+            {/* o recibo tem numeracao propria; o numero da venda e o da lista */}
+            {doc && doc.numero !== venda.numero && (
+              <p className="text-[11.5px] text-suave">
+                venda nº {String(venda.numero).padStart(5, "0")}
+              </p>
+            )}
           </div>
         </header>
 

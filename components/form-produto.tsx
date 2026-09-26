@@ -112,6 +112,9 @@ function Corpo({
   const [gelado, setGelado] = useState(paraTexto(inicial.precoGelado ?? 0));
   const [minAtacado, setMinAtacado] = useState(String(inicial.qtdMinimaAtacado));
   const [minimo, setMinimo] = useState(String(inicial.estoqueMinimo || ""));
+  // pergunta explicita: sem ela, digitar so o custo (para ver a margem)
+  // travava o cadastro com um erro que a pessoa nao entendia
+  const [temNoDeposito, setTemNoDeposito] = useState(false);
   const [qtdInicial, setQtdInicial] = useState("");
   const [custoInicial, setCustoInicial] = useState("");
   const [tentou, setTentou] = useState(false);
@@ -123,8 +126,9 @@ function Corpo({
   const pv = paraCentavos(varejo);
   const pa = paraCentavos(atacado);
   const pg = paraCentavos(gelado);
-  const qtdIni = parseInt(qtdInicial, 10) || 0;
-  const custoIni = paraCentavos(custoInicial);
+  const comEstoque = novo && !semEstoqueInicial && temNoDeposito;
+  const qtdIni = comEstoque ? parseInt(qtdInicial, 10) || 0 : 0;
+  const custoIni = comEstoque ? paraCentavos(custoInicial) : 0;
 
   // custo para a previa de margem: o medio (edicao) ou o de abertura (novo)
   const custoRef = novo
@@ -152,8 +156,8 @@ function Corpo({
         : "",
     codigo: codigoRepetido ? `Código já usado em ${codigoRepetido.nome}.` : "",
     inicial:
-      novo && (qtdIni > 0) !== (custoIni > 0)
-        ? "Preencha a quantidade e o custo, ou deixe os dois em branco."
+      comEstoque && (qtdIni <= 0 || custoIni <= 0)
+        ? `Informe quantas ${p.unidadeCompra} tem e quanto pagou em cada uma — ou marque "Ainda não".`
         : "",
   };
   const valido = Object.values(erros).every((e) => !e);
@@ -185,9 +189,7 @@ function Corpo({
     const gravado = novo
       ? cadastrarProduto(
           final,
-          qtdIni > 0 && custoIni > 0
-            ? { qtdCompra: qtdIni, custoUnitCompra: custoIni }
-            : undefined,
+          comEstoque ? { qtdCompra: qtdIni, custoUnitCompra: custoIni } : undefined,
         )
       : (salvarProduto(final), final);
     onSalvo?.(gravado);
@@ -404,36 +406,63 @@ function Corpo({
             <p className="text-[13px] font-semibold text-tinta">
               Já tem esse produto no depósito?
             </p>
-            <p className="mt-0.5 text-[12px] leading-relaxed text-tinta2">
-              Informe quanto tem e quanto pagou. É o que dá o custo do produto —
-              sem ele, o lucro das vendas sai errado até a primeira entrada.
-            </p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <Campo rotulo={`Quantidade em ${p.unidadeCompra}`}>
-                <Entrada
-                  inputMode="numeric"
-                  value={qtdInicial}
-                  onChange={(e) => setQtdInicial(e.target.value.replace(/\D/g, ""))}
-                  placeholder="0"
-                />
-              </Campo>
-              <Campo rotulo={`Custo por ${p.unidadeCompra} (R$)`}>
-                <Entrada
-                  inputMode="decimal"
-                  value={custoInicial}
-                  onChange={(e) => setCustoInicial(e.target.value)}
-                  placeholder="0,00"
-                />
-              </Campo>
+            <div className="mt-2 grid grid-cols-2 gap-1.5 rounded-md border border-borda bg-superficie p-1">
+              {([false, true] as const).map((tem) => (
+                <button
+                  key={String(tem)}
+                  type="button"
+                  aria-pressed={temNoDeposito === tem}
+                  onClick={() => setTemNoDeposito(tem)}
+                  className={`transicao rounded px-3 py-1.5 text-[13px] font-semibold ${
+                    temNoDeposito === tem
+                      ? "bg-marca text-white"
+                      : "text-tinta2 hover:bg-superficie2"
+                  }`}
+                >
+                  {tem ? "Sim, já tenho" : "Ainda não"}
+                </button>
+              ))}
             </div>
-            {qtdIni > 0 && custoIni > 0 && fator > 0 && (
-              <p className="mt-2 text-[12px] text-marca">
-                Entram {numero(qtdIni * fator)} un a{" "}
-                {custoCurto(custoUnitBase(custoIni, fator))} cada —{" "}
-                {moeda(qtdIni * custoIni)} em estoque.
+            {!temNoDeposito ? (
+              <p className="mt-2.5 text-[12px] leading-relaxed text-tinta2">
+                Tudo certo. O produto fica cadastrado com saldo zero, marcado como{" "}
+                <b>aguarda 1ª entrada</b>. Quando a mercadoria chegar, lance em
+                Entradas → Nova entrada: é ela que dá o saldo e o custo.
               </p>
+            ) : (
+              <>
+                <p className="mt-2.5 text-[12px] leading-relaxed text-tinta2">
+                  Informe quanto tem e quanto pagou. É o que dá o custo do produto —
+                  sem ele, o lucro das vendas sai errado.
+                </p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <Campo rotulo={`Quantidade em ${p.unidadeCompra}`}>
+                    <Entrada
+                      inputMode="numeric"
+                      value={qtdInicial}
+                      onChange={(e) => setQtdInicial(e.target.value.replace(/\D/g, ""))}
+                      placeholder="0"
+                    />
+                  </Campo>
+                  <Campo rotulo={`Custo por ${p.unidadeCompra} (R$)`}>
+                    <Entrada
+                      inputMode="decimal"
+                      value={custoInicial}
+                      onChange={(e) => setCustoInicial(e.target.value)}
+                      placeholder="0,00"
+                    />
+                  </Campo>
+                </div>
+                {qtdIni > 0 && custoIni > 0 && fator > 0 && (
+                  <p className="mt-2 text-[12px] text-marca">
+                    Entram {numero(qtdIni * fator)} un a{" "}
+                    {custoCurto(custoUnitBase(custoIni, fator))} cada —{" "}
+                    {moeda(qtdIni * custoIni)} em estoque.
+                  </p>
+                )}
+                {tentou && erros.inicial && <Erro>{erros.inicial}</Erro>}
+              </>
             )}
-            {tentou && erros.inicial && <Erro>{erros.inicial}</Erro>}
           </div>
         ) : (
           podeVerCusto && (

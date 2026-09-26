@@ -20,3 +20,8 @@ Thumbs.db
 
 # configuracao local do editor
 .claude
+
+# prints e dependencias do gerador do manual
+docs/fonte-manual/shots
+docs/fonte-manual/node_modules
+docs/fonte-manual/package*.json
