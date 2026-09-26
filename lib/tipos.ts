@@ -33,7 +33,9 @@ export type TipoCaixaMov =
   | "SANGRIA"
   | "SUPRIMENTO"
   | "DESPESA"
-  | "RECEBIMENTO";
+  | "RECEBIMENTO"
+  /** devolucao de dinheiro de uma venda cancelada */
+  | "ESTORNO";
 
 export interface Empresa {
   razaoSocial: string;
@@ -66,6 +68,8 @@ export interface Fornecedor {
   telefone: string;
   email: string;
   endereco: string;
+  /** ausente = ativo. Fornecedor nunca e apagado: as entradas apontam para ele. */
+  ativo?: boolean;
 }
 
 export interface Cliente {
@@ -99,6 +103,14 @@ export interface Produto {
   custoUltimaCompra: number; // 1/10000 de real
   precoVarejo: number; // centavos
   precoAtacado: number; // centavos
+  /**
+   * Preco do produto gelado, em centavos. Vale so no varejo: venda no atacado
+   * sai sempre natural. Preco fixo por decisao do cliente — o formulario avisa
+   * quando fica igual ou abaixo do varejo natural.
+   */
+  precoGelado?: number;
+  /** Carvao, gelo e refresco em po nao gelam. Ausente = nao vende gelado. */
+  vendeGelado?: boolean;
   qtdMinimaAtacado: number;
   estoqueMinimo: number;
   saldoAtual: number; // cache — a verdade e a soma dos movimentos
@@ -139,6 +151,14 @@ export interface VendaItem {
   /** Custo medio congelado no instante da venda. Nunca recalcular. */
   custoUnit: number; // 1/10000 de real
   tipoPrecoAplicado: TipoPreco;
+  /** Saiu gelado. So acontece no varejo. */
+  gelado?: boolean;
+  /**
+   * Quanto o gelado cobrou a mais por unidade, congelado no instante da venda
+   * (preco gelado - preco natural). E o que o relatorio soma para comparar com
+   * a conta de luz — recalcular pelo preco de hoje daria numero errado.
+   */
+  adicionalGelado?: number; // centavos
   total: number; // centavos
 }
 
@@ -157,6 +177,9 @@ export interface Venda {
   custoTotal: number; // centavos — soma dos custos congelados
   formaPagamento: FormaPagamento;
   status: "FECHADA" | "CANCELADA";
+  canceladaEm?: string;
+  canceladaPor?: string;
+  motivoCancelamento?: string;
 }
 
 export interface MovimentoEstoque {

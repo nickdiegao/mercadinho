@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
+import { Pencil, Plus } from "lucide-react";
 import { useEstado, usePerfil } from "@/lib/store";
 import { moeda, data } from "@/lib/formato";
 import { Lista, type ColunaLista } from "@/components/lista";
 import type { Cliente } from "@/lib/tipos";
+import { FormCliente } from "@/components/form-cliente";
 import {
+  Botao,
   Cabecalho,
   Cartao,
   Entrada,
@@ -16,9 +19,11 @@ import {
 
 export default function Clientes() {
   const { estado } = useEstado();
-  const { podeVerLucro } = usePerfil();
+  const { podeVerLucro, podeCadastrarCliente } = usePerfil();
   const [busca, setBusca] = useState("");
   const [tabela, setTabela] = useState("");
+  const [form, setForm] = useState<{ cliente: Cliente | null } | null>(null);
+  const buscaAdiada = useDeferredValue(busca);
 
   const porCliente = useMemo(() => {
     const acc = new Map<
@@ -39,9 +44,12 @@ export default function Clientes() {
   }, [estado.vendas]);
 
   const lista = useMemo(() => {
-    const t = busca.trim().toLowerCase();
+    const t = buscaAdiada.trim().toLowerCase();
     return estado.clientes
-      .filter((c) => (tabela ? c.tipoPreco === tabela : true))
+      // desativado some da lista, mas continua valendo nas vendas antigas
+      .filter((c) =>
+        tabela === "INATIVO" ? !c.ativo : c.ativo && (tabela ? c.tipoPreco === tabela : true),
+      )
       .filter(
         (c) =>
           !t ||
@@ -53,7 +61,7 @@ export default function Clientes() {
         (a, b) =>
           (porCliente.get(b.id)?.total ?? 0) - (porCliente.get(a.id)?.total ?? 0),
       );
-  }, [estado.clientes, busca, tabela, porCliente]);
+  }, [estado.clientes, buscaAdiada, tabela, porCliente]);
 
   const colunas: ColunaLista<Cliente>[] = [
     {
@@ -152,6 +160,17 @@ export default function Clientes() {
             <br />
             Limite de crédito: {moeda(c.limiteCredito)}
           </p>
+          {podeCadastrarCliente && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setForm({ cliente: c });
+              }}
+              className="mt-3 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-marca hover:underline"
+            >
+              <Pencil size={13} /> Editar cadastro
+            </button>
+          )}
         </div>
         <div>
           <p className="mb-1.5 text-[10.5px] font-bold uppercase tracking-[0.07em] text-suave">
@@ -185,6 +204,17 @@ export default function Clientes() {
       <Cabecalho
         titulo="Clientes"
         descricao="A tabela de preço do cadastro define se o cliente compra no atacado ou no varejo, em qualquer quantidade."
+        acoes={
+          podeCadastrarCliente && (
+            <Botao
+              variante="primario"
+              onClick={() => setForm({ cliente: null })}
+              className="w-full sm:w-auto"
+            >
+              <Plus size={15} /> Novo cliente
+            </Botao>
+          )
+        }
       />
 
       <div className="nao-imprime mb-4 grid gap-2 sm:grid-cols-[1fr_180px]">
@@ -197,6 +227,7 @@ export default function Clientes() {
           <option value="">Todas as tabelas</option>
           <option value="ATACADO">Atacado</option>
           <option value="VAREJO">Varejo</option>
+          <option value="INATIVO">Desativados</option>
         </Selecao>
       </div>
 
@@ -216,6 +247,11 @@ export default function Clientes() {
           pagamento — está modelado, mas a tela fica para depois.
         </p>
       </Cartao>
+      <FormCliente
+        aberto={form !== null}
+        cliente={form?.cliente}
+        onFechar={() => setForm(null)}
+      />
     </>
   );
 }

@@ -1,16 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
-import { PackagePlus } from "lucide-react";
-import { useEstado } from "@/lib/store";
+import { useMemo, useState } from "react";
+import { PackagePlus, Pencil, Plus } from "lucide-react";
+import { useEstado, usePerfil } from "@/lib/store";
+import { FormFornecedor } from "@/components/form-fornecedor";
 import { moeda, numero, data } from "@/lib/formato";
 import { Lista, SubLista, type ColunaLista, type ColunaSub } from "@/components/lista";
 import type { Entrada, Fornecedor } from "@/lib/tipos";
-import { Cabecalho, Cartao } from "@/components/ui";
+import { Botao, Cabecalho, Cartao } from "@/components/ui";
 
 export default function Fornecedores() {
   const { estado } = useEstado();
+  const { podeCadastrarFornecedor } = usePerfil();
+  const [form, setForm] = useState<{ fornecedor: Fornecedor | null } | null>(null);
+  const [verInativos, setVerInativos] = useState(false);
+  const inativos = estado.fornecedores.filter((f) => f.ativo === false).length;
 
   const resumo = useMemo(() => {
     const acc = new Map<
@@ -32,10 +37,12 @@ export default function Fornecedores() {
 
   const ordenados = useMemo(
     () =>
-      [...estado.fornecedores].sort(
+      estado.fornecedores
+        .filter((f) => (verInativos ? f.ativo === false : f.ativo !== false))
+        .sort(
         (a, b) => (resumo.get(b.id)?.total ?? 0) - (resumo.get(a.id)?.total ?? 0),
       ),
-    [estado.fornecedores, resumo],
+    [estado.fornecedores, resumo, verInativos],
   );
 
   const colunas: ColunaLista<Fornecedor>[] = [
@@ -101,7 +108,7 @@ export default function Fornecedores() {
     },
   ];
 
-  function detalhe(f: Fornecedor) {
+  function cargasDe(f: Fornecedor) {
     const cargas = estado.entradas
       .filter((e) => e.fornecedorId === f.id)
       .slice(0, 6);
@@ -181,12 +188,51 @@ export default function Fornecedores() {
     );
   }
 
+  function detalhe(f: Fornecedor) {
+    return (
+      <div>
+        {cargasDe(f)}
+        {podeCadastrarFornecedor && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setForm({ fornecedor: f });
+            }}
+            className="mt-3 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-marca hover:underline"
+          >
+            <Pencil size={13} /> Editar cadastro
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <>
       <Cabecalho
         titulo="Fornecedores"
         descricao="Cadastro deliberadamente enxuto. Toque num fornecedor para ver as últimas cargas — é de onde vem o custo."
+        acoes={
+          podeCadastrarFornecedor && (
+            <Botao
+              variante="primario"
+              onClick={() => setForm({ fornecedor: null })}
+              className="w-full sm:w-auto"
+            >
+              <Plus size={15} /> Novo fornecedor
+            </Botao>
+          )
+        }
       />
+
+      {(inativos > 0 || verInativos) && (
+        <button
+          onClick={() => setVerInativos((v) => !v)}
+          className="nao-imprime mb-3 text-[12.5px] font-semibold text-marca hover:underline"
+        >
+          {verInativos ? "Voltar aos fornecedores ativos" : `Ver desativados (${inativos})`}
+        </button>
+      )}
 
       <Lista
         colunas={colunas}
@@ -204,6 +250,11 @@ export default function Fornecedores() {
           para sempre.
         </p>
       </Cartao>
+      <FormFornecedor
+        aberto={form !== null}
+        fornecedor={form?.fornecedor}
+        onFechar={() => setForm(null)}
+      />
     </>
   );
 }

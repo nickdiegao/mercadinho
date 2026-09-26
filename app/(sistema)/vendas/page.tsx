@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { Beer, FileText, Plus } from "lucide-react";
+import { useDeferredValue, useMemo, useState } from "react";
+import { Ban, Beer, FileText, Plus, Snowflake } from "lucide-react";
 import { useEstado, usePerfil } from "@/lib/store";
 import { custoItem } from "@/lib/regras";
 import { moeda, numero, dataHora, diaCurto, hora } from "@/lib/formato";
@@ -27,6 +27,8 @@ export default function Vendas() {
   const [busca, setBusca] = useState("");
   const [canal, setCanal] = useState("");
   const [forma, setForma] = useState("");
+  // a digitacao responde na hora; a lista acompanha logo depois
+  const buscaAdiada = useDeferredValue(busca);
 
   const clientePorId = useMemo(
     () => new Map(estado.clientes.map((c) => [c.id, c])),
@@ -38,20 +40,21 @@ export default function Vendas() {
   );
 
   const lista = useMemo(() => {
-    const t = busca.trim().toLowerCase();
+    const t = buscaAdiada.trim().toLowerCase();
     return estado.vendas
       .filter((v) => {
         if (canal && v.tipoPreco !== canal) return false;
-        if (forma && v.formaPagamento !== forma) return false;
+        if (forma === "CANCELADA") {
+          if (v.status !== "CANCELADA") return false;
+        } else if (forma && v.formaPagamento !== forma) return false;
         if (!t) return true;
         const c = clientePorId.get(v.clienteId ?? "");
         return (
           String(v.numero).padStart(5, "0").includes(t) ||
           (c?.nomeRazao.toLowerCase().includes(t) ?? false)
         );
-      })
-      .slice(0, 200);
-  }, [estado.vendas, busca, canal, forma, clientePorId]);
+      });
+  }, [estado.vendas, buscaAdiada, canal, forma, clientePorId]);
 
   const colunas: ColunaLista<Venda>[] = [
     {
@@ -83,10 +86,19 @@ export default function Vendas() {
       papel: "titulo",
       render: (v) => {
         const c = clientePorId.get(v.clienteId ?? "");
-        return c ? (
-          <span className="block max-w-[240px] truncate">{c.nomeRazao}</span>
-        ) : (
-          <span className="text-suave">Consumidor final</span>
+        return (
+          <span className="flex min-w-0 items-center gap-2">
+            {c ? (
+              <span className="block max-w-[240px] truncate">{c.nomeRazao}</span>
+            ) : (
+              <span className="text-suave">Consumidor final</span>
+            )}
+            {v.status === "CANCELADA" && (
+              <Etiqueta tom="alerta">
+                <Ban size={10} className="mr-0.5" /> cancelada
+              </Etiqueta>
+            )}
+          </span>
         );
       },
     },
@@ -128,7 +140,15 @@ export default function Vendas() {
       alinha: "right",
       papel: "destaque",
       render: (v) => (
-        <span className="font-semibold text-tinta">{moeda(v.total)}</span>
+        <span
+          className={
+            v.status === "CANCELADA"
+              ? "font-semibold text-suave line-through"
+              : "font-semibold text-tinta"
+          }
+        >
+          {moeda(v.total)}
+        </span>
       ),
     },
     ...(podeVerLucro
@@ -137,9 +157,12 @@ export default function Vendas() {
             chave: "lucro",
             titulo: "Lucro",
             alinha: "right" as const,
-            render: (v: Venda) => (
-              <span className="text-positivo">{moeda(v.total - v.custoTotal)}</span>
-            ),
+            render: (v: Venda) =>
+              v.status === "CANCELADA" ? (
+                <span className="text-suave">—</span>
+              ) : (
+                <span className="text-positivo">{moeda(v.total - v.custoTotal)}</span>
+              ),
           },
         ]
       : []),
@@ -171,6 +194,11 @@ export default function Vendas() {
                   return (
                     <>
                       {i.tipoPrecoAplicado === "ATACADO" ? "atacado" : "varejo"}
+                      {i.gelado && (
+                        <span className="ml-1 inline-flex items-center gap-0.5 font-semibold text-marca">
+                          <Snowflake size={10} /> gelado
+                        </span>
+                      )}
                       {p && p.fatorConversao > 1 && (
                         <> · {numero(i.qtd / p.fatorConversao)} {p.unidadeCompra}</>
                       )}
@@ -295,12 +323,12 @@ export default function Vendas() {
           <option value="DEBITO">Débito</option>
           <option value="CREDITO">Crédito</option>
           <option value="FIADO">Fiado</option>
+          <option value="CANCELADA">Canceladas</option>
         </Selecao>
       </div>
 
       <p className="mb-3 text-[12.5px] text-suave">
         {lista.length} venda{lista.length === 1 ? "" : "s"}
-        {lista.length === 200 && " (mostrando as 200 mais recentes)"}
       </p>
 
       <Lista

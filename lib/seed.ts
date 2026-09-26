@@ -54,7 +54,7 @@ const id = (prefixo: string) => `${prefixo}_${(++seqId).toString(36)}`;
 const empresa = {
   razaoSocial: "Distribuidora de Bebidas Ltda",
   nomeFantasia: "Distribuidora",
-  cnpj: "42.318.905/0001-64",
+  cnpj: "97.318.905/0001-46",
   inscricaoEstadual: "112.480.339.117",
   regimeTributario: "Simples Nacional",
   endereco: "Av. das Palmeiras, 1420 — Distrito Industrial, Campinas/SP — CEP 13052-410",
@@ -80,26 +80,26 @@ const categorias: Categoria[] = [
 ];
 
 const fornecedores: Fornecedor[] = [
-  { id: "f_1", razaoSocial: "Atacadão de Bebidas Vale Verde S.A.", cnpj: "08.774.201/0001-32", telefone: "(19) 3388-1200", email: "pedidos@valeverde.com.br", endereco: "Rod. Anhanguera, km 98 — Sumaré/SP" },
-  { id: "f_2", razaoSocial: "Cervejaria Monte Claro Ltda", cnpj: "17.556.930/0001-08", telefone: "(11) 4477-9021", email: "comercial@monteclaro.com.br", endereco: "Av. Industrial, 780 — Jundiaí/SP" },
-  { id: "f_3", razaoSocial: "Águas Cristalinas do Sul Ltda", cnpj: "29.031.447/0001-75", telefone: "(19) 3521-4460", email: "vendas@aguascristalinas.com.br", endereco: "Estrada da Serra, 2100 — Águas de Lindóia/SP" },
-  { id: "f_4", razaoSocial: "Refrigerantes Bom Sabor Indústria Ltda", cnpj: "55.902.318/0001-41", telefone: "(19) 3799-3311", email: "sac@bomsabor.ind.br", endereco: "Av. Getúlio Vargas, 5500 — Americana/SP" },
-  { id: "f_5", razaoSocial: "Premium Spirits Importadora Ltda", cnpj: "31.408.226/0001-90", telefone: "(11) 5088-7744", email: "atendimento@premiumspirits.com.br", endereco: "Rua Funchal, 260 — São Paulo/SP" },
+  { id: "f_1", razaoSocial: "Atacadão de Bebidas Vale Verde S.A.", cnpj: "97.774.201/0001-88", telefone: "(19) 3388-1200", email: "pedidos@valeverde.com.br", endereco: "Rod. Anhanguera, km 98 — Sumaré/SP" },
+  { id: "f_2", razaoSocial: "Cervejaria Monte Claro Ltda", cnpj: "97.556.930/0001-68", telefone: "(11) 4477-9021", email: "comercial@monteclaro.com.br", endereco: "Av. Industrial, 780 — Jundiaí/SP" },
+  { id: "f_3", razaoSocial: "Águas Cristalinas do Sul Ltda", cnpj: "97.031.448/0001-04", telefone: "(19) 3521-4460", email: "vendas@aguascristalinas.com.br", endereco: "Estrada da Serra, 2100 — Águas de Lindóia/SP" },
+  { id: "f_4", razaoSocial: "Refrigerantes Bom Sabor Indústria Ltda", cnpj: "97.902.318/0001-08", telefone: "(19) 3799-3311", email: "sac@bomsabor.ind.br", endereco: "Av. Getúlio Vargas, 5500 — Americana/SP" },
+  { id: "f_5", razaoSocial: "Premium Spirits Importadora Ltda", cnpj: "97.408.226/0001-68", telefone: "(11) 5088-7744", email: "atendimento@premiumspirits.com.br", endereco: "Rua Funchal, 260 — São Paulo/SP" },
 ];
 
 const clientes: Cliente[] = [
-  { id: "cl_1", tipo: "PJ", nomeRazao: "Bar do Zeca Ltda ME", cpfCnpj: "23.808.114/0001-59", inscricaoEstadual: "336.902.114.005", telefone: "(19) 99771-4402", email: "bardozeca@gmail.com", endereco: "Rua Sete de Setembro, 340 — Centro, Campinas/SP", tipoPreco: "ATACADO", limiteCredito: 300000, ativo: true },
-  { id: "cl_2", tipo: "PJ", nomeRazao: "Mercearia Santa Luzia Ltda", cpfCnpj: "19.447.290/0001-13", inscricaoEstadual: "224.881.007.339", telefone: "(19) 3226-7781", email: "santaluzia@uol.com.br", endereco: "Av. Brasil, 1180 — Jd. Chapadão, Campinas/SP", tipoPreco: "ATACADO", limiteCredito: 500000, ativo: true },
-  { id: "cl_3", tipo: "PJ", nomeRazao: "Restaurante Sabor Mineiro Eireli", cpfCnpj: "34.129.760/0001-88", inscricaoEstadual: "441.205.998.220", telefone: "(19) 3244-1190", email: "sabormineiro@hotmail.com", endereco: "Rua Barão de Jaguara, 902 — Centro, Campinas/SP", tipoPreco: "ATACADO", limiteCredito: 400000, ativo: true },
-  { id: "cl_4", tipo: "PJ", nomeRazao: "Conveniência Posto Ipê Ltda", cpfCnpj: "27.663.508/0001-24", inscricaoEstadual: "118.774.320.661", telefone: "(19) 3877-2200", email: "postoipe@terra.com.br", endereco: "Rod. Dom Pedro I, km 132 — Campinas/SP", tipoPreco: "ATACADO", limiteCredito: 600000, ativo: true },
-  { id: "cl_5", tipo: "PJ", nomeRazao: "Adega Vinho & Cia Ltda ME", cpfCnpj: "41.220.877/0001-06", inscricaoEstadual: "552.019.443.870", telefone: "(19) 98812-3355", email: "adegavinhoecia@gmail.com", endereco: "Rua Coronel Quirino, 1455 — Cambuí, Campinas/SP", tipoPreco: "ATACADO", limiteCredito: 250000, ativo: true },
-  { id: "cl_6", tipo: "PJ", nomeRazao: "Lanchonete Estrela Azul Ltda", cpfCnpj: "16.905.332/0001-77", inscricaoEstadual: "667.443.001.229", telefone: "(19) 3255-8890", email: "estrelaazul@bol.com.br", endereco: "Av. John Boyd Dunlop, 3200 — Campinas/SP", tipoPreco: "ATACADO", limiteCredito: 200000, ativo: true },
-  { id: "cl_7", tipo: "PJ", nomeRazao: "Buffet Recanto das Flores Ltda", cpfCnpj: "38.774.019/0001-52", inscricaoEstadual: "993.107.556.418", telefone: "(19) 3298-4471", email: "recantodasflores@gmail.com", endereco: "Estrada da Rhodia, 890 — Barão Geraldo, Campinas/SP", tipoPreco: "ATACADO", limiteCredito: 350000, ativo: true },
-  { id: "cl_8", tipo: "PF", nomeRazao: "Cláudia Ferreira Lima", cpfCnpj: "324.887.109-55", telefone: "(19) 99120-8834", endereco: "Rua das Acácias, 88 — Jd. Nova Europa, Campinas/SP", tipoPreco: "VAREJO", limiteCredito: 0, ativo: true },
-  { id: "cl_9", tipo: "PF", nomeRazao: "Roberto Salgado Pinheiro", cpfCnpj: "118.442.907-31", telefone: "(19) 98844-1207", endereco: "Rua Tiradentes, 415 — Vila Industrial, Campinas/SP", tipoPreco: "VAREJO", limiteCredito: 0, ativo: true },
-  { id: "cl_10", tipo: "PF", nomeRazao: "Simone Duarte Nogueira", cpfCnpj: "907.331.228-04", telefone: "(19) 99655-7710", endereco: "Av. Orosimbo Maia, 2200 — Centro, Campinas/SP", tipoPreco: "VAREJO", limiteCredito: 0, ativo: true },
-  { id: "cl_11", tipo: "PF", nomeRazao: "Edson Batista da Silva", cpfCnpj: "445.019.663-72", telefone: "(19) 98330-9925", endereco: "Rua Amoreiras, 76 — Jd. Aurélia, Campinas/SP", tipoPreco: "VAREJO", limiteCredito: 0, ativo: true },
-  { id: "cl_12", tipo: "PF", nomeRazao: "Patrícia Moraes Tavares", cpfCnpj: "662.774.310-19", telefone: "(19) 99441-2038", endereco: "Rua Sales de Oliveira, 1290 — Vila Industrial, Campinas/SP", tipoPreco: "VAREJO", limiteCredito: 0, ativo: true },
+  { id: "cl_1", tipo: "PJ", nomeRazao: "Bar do Zeca Ltda ME", cpfCnpj: "97.808.114/0001-02", inscricaoEstadual: "336.902.114.005", telefone: "(19) 99771-4402", email: "bardozeca@gmail.com", endereco: "Rua Sete de Setembro, 340 — Centro, Campinas/SP", tipoPreco: "ATACADO", limiteCredito: 300000, ativo: true },
+  { id: "cl_2", tipo: "PJ", nomeRazao: "Mercearia Santa Luzia Ltda", cpfCnpj: "97.447.290/0001-58", inscricaoEstadual: "224.881.007.339", telefone: "(19) 3226-7781", email: "santaluzia@uol.com.br", endereco: "Av. Brasil, 1180 — Jd. Chapadão, Campinas/SP", tipoPreco: "ATACADO", limiteCredito: 500000, ativo: true },
+  { id: "cl_3", tipo: "PJ", nomeRazao: "Restaurante Sabor Mineiro Eireli", cpfCnpj: "97.129.760/0001-35", inscricaoEstadual: "441.205.998.220", telefone: "(19) 3244-1190", email: "sabormineiro@hotmail.com", endereco: "Rua Barão de Jaguara, 902 — Centro, Campinas/SP", tipoPreco: "ATACADO", limiteCredito: 400000, ativo: true },
+  { id: "cl_4", tipo: "PJ", nomeRazao: "Conveniência Posto Ipê Ltda", cpfCnpj: "97.663.508/0001-01", inscricaoEstadual: "118.774.320.661", telefone: "(19) 3877-2200", email: "postoipe@terra.com.br", endereco: "Rod. Dom Pedro I, km 132 — Campinas/SP", tipoPreco: "ATACADO", limiteCredito: 600000, ativo: true },
+  { id: "cl_5", tipo: "PJ", nomeRazao: "Adega Vinho & Cia Ltda ME", cpfCnpj: "97.220.877/0001-20", inscricaoEstadual: "552.019.443.870", telefone: "(19) 98812-3355", email: "adegavinhoecia@gmail.com", endereco: "Rua Coronel Quirino, 1455 — Cambuí, Campinas/SP", tipoPreco: "ATACADO", limiteCredito: 250000, ativo: true },
+  { id: "cl_6", tipo: "PJ", nomeRazao: "Lanchonete Estrela Azul Ltda", cpfCnpj: "97.905.332/0001-57", inscricaoEstadual: "667.443.001.229", telefone: "(19) 3255-8890", email: "estrelaazul@bol.com.br", endereco: "Av. John Boyd Dunlop, 3200 — Campinas/SP", tipoPreco: "ATACADO", limiteCredito: 200000, ativo: true },
+  { id: "cl_7", tipo: "PJ", nomeRazao: "Buffet Recanto das Flores Ltda", cpfCnpj: "97.774.019/0001-27", inscricaoEstadual: "993.107.556.418", telefone: "(19) 3298-4471", email: "recantodasflores@gmail.com", endereco: "Estrada da Rhodia, 890 — Barão Geraldo, Campinas/SP", tipoPreco: "ATACADO", limiteCredito: 350000, ativo: true },
+  { id: "cl_8", tipo: "PF", nomeRazao: "Cláudia Ferreira Lima", cpfCnpj: "324.887.109-11", telefone: "(19) 99120-8834", endereco: "Rua das Acácias, 88 — Jd. Nova Europa, Campinas/SP", tipoPreco: "VAREJO", limiteCredito: 0, ativo: true },
+  { id: "cl_9", tipo: "PF", nomeRazao: "Roberto Salgado Pinheiro", cpfCnpj: "118.442.907-35", telefone: "(19) 98844-1207", endereco: "Rua Tiradentes, 415 — Vila Industrial, Campinas/SP", tipoPreco: "VAREJO", limiteCredito: 0, ativo: true },
+  { id: "cl_10", tipo: "PF", nomeRazao: "Simone Duarte Nogueira", cpfCnpj: "907.331.228-09", telefone: "(19) 99655-7710", endereco: "Av. Orosimbo Maia, 2200 — Centro, Campinas/SP", tipoPreco: "VAREJO", limiteCredito: 0, ativo: true },
+  { id: "cl_11", tipo: "PF", nomeRazao: "Edson Batista da Silva", cpfCnpj: "445.019.663-51", telefone: "(19) 98330-9925", endereco: "Rua Amoreiras, 76 — Jd. Aurélia, Campinas/SP", tipoPreco: "VAREJO", limiteCredito: 0, ativo: true },
+  { id: "cl_12", tipo: "PF", nomeRazao: "Patrícia Moraes Tavares", cpfCnpj: "662.774.310-80", telefone: "(19) 99441-2038", endereco: "Rua Sales de Oliveira, 1290 — Vila Industrial, Campinas/SP", tipoPreco: "VAREJO", limiteCredito: 0, ativo: true },
 ];
 
 /** [nome, categoria, unCompra, fator, custoCompraCentavos, varejo, atacado, minAtacado, estMin, ncm, vasilhame?] */
@@ -146,6 +146,22 @@ const VASILHAMES: Array<[string, string, number]> = [
   ["v_600", "Casco Garrafa 600ml", 150],
   ["v_1l", "Casco Garrafa 1L", 200],
 ];
+
+// ---------------------------------------------------------------- gelado
+/** Categorias que vao para a geladeira. Destilado, gelo e carvao nao. */
+const CATEGORIAS_GELADAS = new Set(["c_cerveja", "c_refri", "c_agua", "c_energ", "c_suco"]);
+const NAO_GELA = new Set(["Refresco em Pó Sortido 25g"]);
+
+/**
+ * Preco gelado inicial do catalogo ficticio: varejo + um adicional por faixa.
+ * E so o ponto de partida da demonstracao — no sistema o preco gelado e fixo
+ * e editavel por produto.
+ */
+export function geladoPadrao(nome: string, categoriaId: string, varejo: number) {
+  if (!CATEGORIAS_GELADAS.has(categoriaId) || NAO_GELA.has(nome)) return null;
+  const adicional = varejo <= 400 ? 50 : varejo <= 700 ? 70 : varejo <= 1000 ? 100 : 150;
+  return varejo + adicional;
+}
 
 // ---------------------------------------------------------------- geracao
 const DIA = 86400000;
@@ -214,6 +230,10 @@ export function gerarEstado(): Estado {
       custoUltimaCompra: custoBase,
       precoVarejo: varejo,
       precoAtacado: atacado,
+      ...(() => {
+        const g = geladoPadrao(nome, cat, varejo);
+        return g ? { vendeGelado: true, precoGelado: g } : { vendeGelado: false };
+      })(),
       qtdMinimaAtacado: minAt,
       estoqueMinimo: estMin,
       saldoAtual: 0,
@@ -400,7 +420,9 @@ export function gerarEstado(): Estado {
         qtd = Math.min(qtd, Math.max(0, Math.floor(p.saldoAtual)));
         if (qtd <= 0) continue;
 
-        const { tipo, preco } = precoAplicavel(p, qtd, cliente);
+        // no balcao, boa parte de quem leva cerveja e refrigerante quer gelado
+        const querGelado = !atacado && p.vendeGelado === true && chance(0.55);
+        const { tipo, preco, gelado } = precoAplicavel(p, qtd, cliente, querGelado);
         itens.push({
           id: id("vi"),
           produtoId: p.id,
@@ -409,6 +431,9 @@ export function gerarEstado(): Estado {
           precoUnit: preco,
           custoUnit: p.custoMedio, // regra 3: congela aqui
           tipoPrecoAplicado: tipo,
+          ...(gelado
+            ? { gelado: true, adicionalGelado: preco - p.precoVarejo }
+            : {}),
           total: totalItem(qtd, preco),
         });
       }
@@ -556,7 +581,7 @@ export function gerarEstado(): Estado {
   entradas.sort((a, b) => b.data.localeCompare(a.data));
 
   return {
-    versao: 1,
+    versao: 2,
     empresa,
     usuarios,
     usuarioAtualId: null,
@@ -573,3 +598,56 @@ export function gerarEstado(): Estado {
     logs: [],
   };
 }
+
+/**
+ * Estado minimo para o primeiro render, antes de ler o localStorage.
+ *
+ * Antes o provider chamava gerarEstado() em todo carregamento de pagina e
+ * jogava o resultado fora logo depois, quando lia os dados salvos. Agora o
+ * historico ficticio so e gerado quando nao ha nada salvo.
+ */
+export function estadoVazio(): Estado {
+  return {
+    versao: 2,
+    empresa: { ...empresa },
+    usuarios: usuarios.map((u) => ({ ...u })),
+    usuarioAtualId: null,
+    categorias: categorias.map((c) => ({ ...c })),
+    fornecedores: [],
+    clientes: [],
+    produtos: [],
+    entradas: [],
+    vendas: [],
+    movimentos: [],
+    caixaSessoes: [],
+    caixaMovimentos: [],
+    documentos: [],
+    logs: [],
+  };
+}
+
+/**
+ * Os documentos do catalogo ficticio da versao 1 tinham digito verificador
+ * errado. A migracao troca pelos numeros validos — conferidos na Receita
+ * para nao coincidir com nenhuma empresa real.
+ */
+export const DOCUMENTOS_V1: Record<string, string> = {
+  "08.774.201/0001-32": "97.774.201/0001-88",
+  "16.905.332/0001-77": "97.905.332/0001-57",
+  "17.556.930/0001-08": "97.556.930/0001-68",
+  "19.447.290/0001-13": "97.447.290/0001-58",
+  "23.808.114/0001-59": "97.808.114/0001-02",
+  "27.663.508/0001-24": "97.663.508/0001-01",
+  "29.031.447/0001-75": "97.031.448/0001-04",
+  "31.408.226/0001-90": "97.408.226/0001-68",
+  "34.129.760/0001-88": "97.129.760/0001-35",
+  "38.774.019/0001-52": "97.774.019/0001-27",
+  "41.220.877/0001-06": "97.220.877/0001-20",
+  "42.318.905/0001-64": "97.318.905/0001-46",
+  "55.902.318/0001-41": "97.902.318/0001-08",
+  "118.442.907-31": "118.442.907-35",
+  "324.887.109-55": "324.887.109-11",
+  "445.019.663-72": "445.019.663-51",
+  "662.774.310-19": "662.774.310-80",
+  "907.331.228-04": "907.331.228-09"
+};

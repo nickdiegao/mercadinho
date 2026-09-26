@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
 import { useEstado } from "@/lib/store";
@@ -23,6 +23,7 @@ import {
 function ListaEntradas() {
   const { estado } = useEstado();
   const [busca, setBusca] = useState("");
+  const buscaAdiada = useDeferredValue(busca);
 
   // o extrato de estoque manda para ca com ?abrir=<id> quando o movimento
   // veio de uma compra: a carga ja abre expandida, mostrando o que entrou
@@ -46,7 +47,7 @@ function ListaEntradas() {
   );
 
   const lista = useMemo(() => {
-    const t = busca.trim().toLowerCase();
+    const t = buscaAdiada.trim().toLowerCase();
     return estado.entradas.filter((e) => {
       if (!t) return true;
       const f = fornPorId.get(e.fornecedorId);
@@ -55,7 +56,7 @@ function ListaEntradas() {
         (f?.razaoSocial.toLowerCase().includes(t) ?? false)
       );
     });
-  }, [estado.entradas, busca, fornPorId]);
+  }, [estado.entradas, buscaAdiada, fornPorId]);
 
   const total = lista.reduce((a, e) => a + e.valorTotal, 0);
 

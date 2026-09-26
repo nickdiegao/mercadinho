@@ -17,3 +17,6 @@ next-env.d.ts
 # sistema
 .DS_Store
 Thumbs.db
+
+# configuracao local do editor
+.claude

@@ -60,22 +60,32 @@ export function novoCustoMedio(
 
 // ---------------------------------------------------------------- preco
 
+/** O produto tem preco gelado configurado. */
+export function podeGelar(produto: Produto): boolean {
+  return produto.vendeGelado === true && (produto.precoGelado ?? 0) > 0;
+}
+
 /**
- * Decide entre atacado e varejo, na ordem do blueprint:
- *   1. cliente marcado como ATACADO
- *   2. quantidade atinge o minimo do produto
- *   caso contrario, VAREJO
+ * Decide o preco do item, na ordem do blueprint:
+ *   1. cliente marcado como ATACADO          -> atacado
+ *   2. quantidade atinge o minimo do produto -> atacado
+ *   3. caso contrario                        -> varejo
+ *
+ * Gelado so existe no varejo, por decisao do cliente: venda no atacado sai
+ * sempre natural, mesmo que o item tenha sido marcado como gelado.
  */
 export function precoAplicavel(
   produto: Produto,
   qtd: number,
   cliente?: Cliente | null,
-): { tipo: TipoPreco; preco: number; motivo: string } {
+  querGelado = false,
+): { tipo: TipoPreco; preco: number; motivo: string; gelado: boolean } {
   if (cliente?.tipoPreco === "ATACADO") {
     return {
       tipo: "ATACADO",
       preco: produto.precoAtacado,
       motivo: "cliente com tabela de atacado",
+      gelado: false,
     };
   }
   if (qtd >= produto.qtdMinimaAtacado) {
@@ -83,9 +93,23 @@ export function precoAplicavel(
       tipo: "ATACADO",
       preco: produto.precoAtacado,
       motivo: `a partir de ${produto.qtdMinimaAtacado} un`,
+      gelado: false,
     };
   }
-  return { tipo: "VAREJO", preco: produto.precoVarejo, motivo: "venda no varejo" };
+  if (querGelado && podeGelar(produto)) {
+    return {
+      tipo: "VAREJO",
+      preco: produto.precoGelado!,
+      motivo: "gelado",
+      gelado: true,
+    };
+  }
+  return {
+    tipo: "VAREJO",
+    preco: produto.precoVarejo,
+    motivo: "venda no varejo",
+    gelado: false,
+  };
 }
 
 /** Margem sobre o preco de venda. (preco - custo) / preco */

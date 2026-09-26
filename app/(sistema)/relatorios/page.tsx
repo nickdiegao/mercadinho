@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { FileSpreadsheet, FileText, Printer } from "lucide-react";
+import { FileSpreadsheet, FileText, Printer, Snowflake } from "lucide-react";
 import { useEstado, usePerfil } from "@/lib/store";
 import {
   inicioDoDia,
   porCanal,
+  resumoGelado,
   porCategoria,
   rankingProdutos,
   totais,
@@ -21,6 +22,8 @@ import {
   Cartao,
   Etiqueta,
   Indicador,
+  Campo,
+  Entrada,
   Selecao,
   TituloCartao,
 } from "@/components/ui";
@@ -62,6 +65,11 @@ export default function Relatorios() {
 
   const t = useMemo(() => totais(vendas), [vendas]);
   const canais = useMemo(() => porCanal(vendas), [vendas]);
+  const gelado = useMemo(() => resumoGelado(vendas), [vendas]);
+  const [contaLuzTexto, setContaLuzTexto] = useState("");
+  const contaLuz = Math.round(
+    (parseFloat(contaLuzTexto.replace(/\./g, "").replace(",", ".")) || 0) * 100,
+  );
   const cats = useMemo(() => porCategoria(estado, vendas), [estado, vendas]);
   const ranking = useMemo(() => rankingProdutos(estado, vendas), [estado, vendas]);
 
@@ -320,6 +328,75 @@ export default function Relatorios() {
           />
         </div>
       </div>
+
+      <Cartao className="mt-4">
+        <TituloCartao
+          extra={
+            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-marca">
+              <Snowflake size={13} /> só varejo
+            </span>
+          }
+        >
+          Gelado — a geladeira se paga?
+        </TituloCartao>
+        {gelado.unidades === 0 ? (
+          <p className="text-sm text-suave">Nenhuma venda gelada no período.</p>
+        ) : (
+          <div className="grid gap-5 lg:grid-cols-[1fr_1fr_1.3fr]">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-suave">
+                Saiu gelado
+              </p>
+              <p className="tabular mt-1.5 text-[22px] font-semibold leading-none text-tinta">
+                {numero(gelado.unidades)} un
+              </p>
+              <p className="mt-1.5 text-[12px] text-suave">
+                {porcento(gelado.participacao)} do que vendeu no varejo
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-suave">
+                Rendeu a mais por ser gelado
+              </p>
+              <p className="tabular mt-1.5 text-[22px] font-semibold leading-none text-positivo">
+                {moeda(gelado.adicional)}
+              </p>
+              <p className="mt-1.5 text-[12px] text-suave">
+                diferença para o preço natural, em {moeda(gelado.receita)} vendidos
+              </p>
+            </div>
+            <div className="rounded-md border border-borda bg-superficie2/50 px-3.5 py-3">
+              <Campo
+                rotulo="Conta de luz da geladeira no período (R$)"
+                dica="Estimativa — só para comparar. Não é gravado."
+              >
+                <Entrada
+                  inputMode="decimal"
+                  value={contaLuzTexto}
+                  onChange={(e) => setContaLuzTexto(e.target.value)}
+                  placeholder="0,00"
+                />
+              </Campo>
+              {contaLuz > 0 && (
+                <p
+                  className={`mt-2.5 text-[13px] font-semibold ${
+                    gelado.adicional >= contaLuz ? "text-positivo" : "text-alerta"
+                  }`}
+                >
+                  {gelado.adicional >= contaLuz
+                    ? `Se paga: sobram ${moeda(gelado.adicional - contaLuz)}.`
+                    : `Não se paga: faltam ${moeda(contaLuz - gelado.adicional)}.`}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+        <p className="mt-4 border-t border-borda pt-3 text-[12.5px] leading-relaxed text-suave">
+          O custo de energia não entra no custo do produto — isso bagunçaria o
+          custo médio. O sistema separa quanto o gelado cobrou a mais em cada
+          venda, para você comparar com a conta de luz.
+        </p>
+      </Cartao>
 
       <div className="mt-6">
         <div className="mb-3">

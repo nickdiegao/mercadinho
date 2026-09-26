@@ -102,6 +102,34 @@ export function porCategoria(estado: Estado, vendas: Venda[]) {
 }
 
 /** Separa atacado de varejo — a leitura que o dono mais pede. */
+/**
+ * Quanto o gelado rendeu a mais. Soma o adicional congelado em cada item —
+ * a diferenca entre o preco gelado e o natural no dia da venda. E o numero
+ * que a dona compara com a conta de luz da geladeira.
+ */
+export function resumoGelado(vendas: Venda[]) {
+  let unidades = 0;
+  let receita = 0;
+  let adicional = 0;
+  let unidadesVarejo = 0;
+  for (const v of vendas) {
+    for (const it of v.itens) {
+      if (it.tipoPrecoAplicado === "VAREJO") unidadesVarejo += it.qtd;
+      if (!it.gelado) continue;
+      unidades += it.qtd;
+      receita += it.total;
+      adicional += Math.round(it.qtd * (it.adicionalGelado ?? 0));
+    }
+  }
+  return {
+    unidades,
+    receita,
+    adicional,
+    /** fatia das unidades de varejo que saiu gelada */
+    participacao: unidadesVarejo > 0 ? unidades / unidadesVarejo : 0,
+  };
+}
+
 export function porCanal(vendas: Venda[]) {
   const zera = () => ({ receita: 0, lucro: 0, itens: 0 });
   const canais: Record<TipoPreco, ReturnType<typeof zera>> = {
@@ -152,8 +180,9 @@ export function resumoCaixa(estado: Estado, sessaoId?: string) {
     (m) => !m.formaPagamento || m.formaPagamento === "DINHEIRO",
   );
   const esperado = sessao.fundoTroco + emDinheiro.reduce((a, m) => a + m.valor, 0);
+  // estorno de venda cancelada abate o faturado da sessao
   const faturado = movs
-    .filter((m) => m.tipo === "VENDA")
+    .filter((m) => m.tipo === "VENDA" || m.tipo === "ESTORNO")
     .reduce((a, m) => a + m.valor, 0);
 
   return {

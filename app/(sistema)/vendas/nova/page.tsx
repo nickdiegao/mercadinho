@@ -2,11 +2,12 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Minus, Plus, Search, Trash2 } from "lucide-react";
+import { Check, Minus, Plus, Search, Snowflake, Trash2, UserPlus } from "lucide-react";
 import { useEstado, usePerfil } from "@/lib/store";
-import { precoAplicavel } from "@/lib/regras";
+import { podeGelar, precoAplicavel } from "@/lib/regras";
 import { moeda, numero } from "@/lib/formato";
 import type { FormaPagamento, Produto } from "@/lib/tipos";
+import { FormCliente } from "@/components/form-cliente";
 import {
   Aviso,
   Botao,
@@ -22,6 +23,8 @@ import {
 interface Linha {
   produtoId: string;
   qtd: number;
+  /** Operador marcou gelado. So vale se a linha sair no varejo. */
+  gelado: boolean;
 }
 
 const FORMAS: { valor: FormaPagamento; rotulo: string }[] = [
@@ -34,7 +37,8 @@ const FORMAS: { valor: FormaPagamento; rotulo: string }[] = [
 
 export default function NovaVenda() {
   const { estado, registrarVenda } = useEstado();
-  const { podeVerLucro } = usePerfil();
+  const { podeVerLucro, podeVerCusto, podeCadastrarCliente } = usePerfil();
+  const [novoCliente, setNovoCliente] = useState(false);
   const router = useRouter();
   const buscaRef = useRef<HTMLInputElement>(null);
 
@@ -49,6 +53,10 @@ export default function NovaVenda() {
   const vendaveis = useMemo(
     () => estado.produtos.filter((p) => p.tipo === "NORMAL" && p.ativo),
     [estado.produtos],
+  );
+  const clientesAtivos = useMemo(
+    () => estado.clientes.filter((c) => c.ativo),
+    [estado.clientes],
   );
 
   const resultados = useMemo(() => {
@@ -66,13 +74,14 @@ export default function NovaVenda() {
 
   const itens = linhas.map((l) => {
     const p = estado.produtos.find((x) => x.id === l.produtoId)!;
-    const { tipo, preco, motivo } = precoAplicavel(p, l.qtd, cliente);
+    const { tipo, preco, motivo, gelado } = precoAplicavel(p, l.qtd, cliente, l.gelado);
     return {
       ...l,
       produto: p,
       tipoPreco: tipo,
       precoUnit: preco,
       motivo,
+      saiGelado: gelado,
       total: Math.round(l.qtd * preco),
     };
   });
@@ -89,16 +98,24 @@ export default function NovaVenda() {
   );
 
   function adicionar(p: Produto) {
+    // produto sem preco nao vende: a administradora ainda nao definiu
+    if (p.precoVarejo <= 0) return;
     setLinhas((ls) => {
       const existe = ls.find((l) => l.produtoId === p.id);
       if (existe)
         return ls.map((l) =>
           l.produtoId === p.id ? { ...l, qtd: l.qtd + 1 } : l,
         );
-      return [...ls, { produtoId: p.id, qtd: 1 }];
+      return [...ls, { produtoId: p.id, qtd: 1, gelado: false }];
     });
     setBusca("");
     buscaRef.current?.focus();
+  }
+
+  function alternarGelado(produtoId: string) {
+    setLinhas((ls) =>
+      ls.map((l) => (l.produtoId === produtoId ? { ...l, gelado: !l.gelado } : l)),
+    );
   }
 
   function mudarQtd(produtoId: string, qtd: number) {
@@ -120,6 +137,9 @@ export default function NovaVenda() {
         qtd: i.qtd,
         precoUnit: i.precoUnit,
         tipoPrecoAplicado: i.tipoPreco,
+        gelado: i.saiGelado,
+        // quanto o gelado cobrou a mais, congelado para o relatorio
+        adicionalGelado: i.saiGelado ? i.precoUnit - i.produto.precoVarejo : undefined,
       })),
       desconto,
       formaPagamento: forma,
@@ -166,7 +186,8 @@ export default function NovaVenda() {
                   <li key={p.id}>
                     <button
                       onClick={() => adicionar(p)}
-                      className={`transicao flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-marca-clara ${
+                      disabled={p.precoVarejo <= 0}
+                      className={`transicao flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-marca-clara disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent ${
                         i === 0 ? "bg-superficie2/60" : ""
                       }`}
                     >
@@ -179,14 +200,28 @@ export default function NovaVenda() {
                           {p.fatorConversao}
                         </span>
                       </span>
-                      <span className="shrink-0 text-right">
-                        <span className="tabular block text-[13px] font-semibold">
-                          {moeda(p.precoVarejo)}
+                      {p.precoVarejo <= 0 ? (
+                        <span className="shrink-0 text-right text-[11.5px] font-semibold text-alerta">
+                          sem preço
+                          <span className="block font-normal text-suave">
+                            a admin define
+                          </span>
                         </span>
-                        <span className="tabular block text-[11px] text-marca">
-                          {moeda(p.precoAtacado)} atacado
+                      ) : (
+                        <span className="shrink-0 text-right">
+                          <span className="tabular block text-[13px] font-semibold">
+                            {moeda(p.precoVarejo)}
+                          </span>
+                          <span className="tabular block text-[11px] text-marca">
+                            {moeda(p.precoAtacado)} atacado
+                          </span>
+                          {podeGelar(p) && (
+                            <span className="tabular flex items-center justify-end gap-0.5 text-[11px] text-suave">
+                              <Snowflake size={10} /> {moeda(p.precoGelado!)}
+                            </span>
+                          )}
                         </span>
-                      </span>
+                      )}
                     </button>
                   </li>
                 ))}
@@ -217,6 +252,11 @@ export default function NovaVenda() {
                           <Etiqueta tom={i.tipoPreco === "ATACADO" ? "marca" : "neutro"}>
                             {i.tipoPreco}
                           </Etiqueta>
+                          {i.saiGelado && (
+                            <Etiqueta tom="marca">
+                              <Snowflake size={10} className="mr-0.5" /> gelado
+                            </Etiqueta>
+                          )}
                           <span>
                             {moeda(i.precoUnit)} / un — {i.motivo}
                           </span>
@@ -271,9 +311,38 @@ export default function NovaVenda() {
                       >
                         1 {i.produto.unidadeCompra} = {i.produto.fatorConversao} un
                       </button>
+                      {podeGelar(i.produto) && (
+                        <button
+                          onClick={() => alternarGelado(i.produtoId)}
+                          disabled={i.tipoPreco === "ATACADO"}
+                          aria-pressed={i.saiGelado}
+                          title={
+                            i.tipoPreco === "ATACADO"
+                              ? "Venda no atacado sai sempre natural"
+                              : undefined
+                          }
+                          className={`transicao inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${
+                            i.saiGelado
+                              ? "border-marca bg-marca text-white"
+                              : "border-borda2 text-tinta2 hover:border-marca hover:text-marca"
+                          }`}
+                        >
+                          <Snowflake size={11} />
+                          {i.tipoPreco === "ATACADO"
+                            ? "atacado sai natural"
+                            : i.saiGelado
+                              ? "gelado"
+                              : `gelado ${moeda(i.produto.precoGelado!)}`}
+                        </button>
+                      )}
                       {i.qtd > i.produto.saldoAtual && (
                         <span className="font-semibold text-alerta">
                           saldo insuficiente: tem {numero(i.produto.saldoAtual)} un
+                        </span>
+                      )}
+                      {podeVerCusto && i.produto.custoMedio <= 0 && (
+                        <span className="font-semibold text-negativo">
+                          sem custo: o lucro desta venda vai aparecer inflado
                         </span>
                       )}
                       {i.produto.vasilhameId && (
@@ -299,14 +368,27 @@ export default function NovaVenda() {
 
         <div className="flex flex-col gap-4">
           <Cartao>
-            <TituloCartao>Cliente</TituloCartao>
+            <TituloCartao
+              extra={
+                podeCadastrarCliente && (
+                  <button
+                    onClick={() => setNovoCliente(true)}
+                    className="inline-flex items-center gap-1 text-[12px] font-semibold text-marca hover:underline"
+                  >
+                    <UserPlus size={13} /> Novo
+                  </button>
+                )
+              }
+            >
+              Cliente
+            </TituloCartao>
             <Selecao
               value={clienteId}
               onChange={(e) => setClienteId(e.target.value)}
             >
               <option value="">Consumidor final (varejo)</option>
               <optgroup label="Atacado">
-                {estado.clientes
+                {clientesAtivos
                   .filter((c) => c.tipoPreco === "ATACADO")
                   .map((c) => (
                     <option key={c.id} value={c.id}>
@@ -315,7 +397,7 @@ export default function NovaVenda() {
                   ))}
               </optgroup>
               <optgroup label="Varejo">
-                {estado.clientes
+                {clientesAtivos
                   .filter((c) => c.tipoPreco === "VAREJO")
                   .map((c) => (
                     <option key={c.id} value={c.id}>
@@ -425,6 +507,12 @@ export default function NovaVenda() {
           </Cartao>
         </div>
       </div>
+      {/* cadastro sem largar a venda: o cliente novo ja entra selecionado */}
+      <FormCliente
+        aberto={novoCliente}
+        onFechar={() => setNovoCliente(false)}
+        onSalvo={(c) => setClienteId(c.id)}
+      />
     </>
   );
 }

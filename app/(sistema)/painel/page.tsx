@@ -2,15 +2,7 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import dynamic from "next/dynamic";
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -27,7 +19,14 @@ import {
   serieDiaria,
   vendasEntre,
 } from "@/lib/consultas";
-import { moeda, numero, porcento, diaCurto, hora } from "@/lib/formato";
+import { moeda, numero, porcento, hora } from "@/lib/formato";
+
+const GraficoVendas = dynamic(() => import("@/components/grafico-vendas"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-full w-full rounded-md bg-superficie2/60 motion-safe:animate-pulse" />
+  ),
+});
 import {
   Barra,
   Cabecalho,
@@ -124,67 +123,7 @@ export default function Painel() {
             Últimos 30 dias
           </TituloCartao>
           <div className="h-[200px] w-full sm:h-[236px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={serie} margin={{ top: 4, right: 4, left: -18, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="gR" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#1e3f8f" stopOpacity={0.22} />
-                    <stop offset="100%" stopColor="#1e3f8f" stopOpacity={0.01} />
-                  </linearGradient>
-                  <linearGradient id="gL" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#0e6a4f" stopOpacity={0.2} />
-                    <stop offset="100%" stopColor="#0e6a4f" stopOpacity={0.01} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid stroke="#e6ecf3" vertical={false} />
-                <XAxis
-                  dataKey="dia"
-                  tickFormatter={(d) => diaCurto(d)}
-                  tick={{ fontSize: 10.5, fill: "#6b7685" }}
-                  axisLine={false}
-                  tickLine={false}
-                  interval="preserveStartEnd"
-                  minTickGap={28}
-                />
-                <YAxis
-                  tick={{ fontSize: 10.5, fill: "#6b7685" }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={(v: number) =>
-                    v >= 1000 ? `${Math.round(v / 1000)}k` : String(v)
-                  }
-                />
-                <Tooltip
-                  contentStyle={{
-                    border: "1px solid #dbe2ea",
-                    borderRadius: 8,
-                    fontSize: 12,
-                    boxShadow: "0 6px 20px -12px rgba(15,20,28,.4)",
-                  }}
-                  labelFormatter={(d) => diaCurto(String(d))}
-                  formatter={(v: number, nome: string) => [
-                    moeda(Math.round(v * 100)),
-                    nome === "receita" ? "Receita" : "Lucro",
-                  ]}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="receita"
-                  stroke="#1e3f8f"
-                  strokeWidth={1.8}
-                  fill="url(#gR)"
-                />
-                {podeVerLucro && (
-                  <Area
-                    type="monotone"
-                    dataKey="lucro"
-                    stroke="#0e6a4f"
-                    strokeWidth={1.8}
-                    fill="url(#gL)"
-                  />
-                )}
-              </AreaChart>
-            </ResponsiveContainer>
+            <GraficoVendas serie={serie} comLucro={podeVerLucro} />
           </div>
         </Cartao>
 

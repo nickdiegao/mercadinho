@@ -2,8 +2,10 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Check, Search, Trash2 } from "lucide-react";
-import { useEstado } from "@/lib/store";
+import { ArrowRight, Check, PackagePlus, Plus, Search, Trash2 } from "lucide-react";
+import { useEstado, usePerfil } from "@/lib/store";
+import { FormProduto } from "@/components/form-produto";
+import { FormFornecedor } from "@/components/form-fornecedor";
 import { custoUnitBase, novoCustoMedio, paraBase } from "@/lib/regras";
 import { moeda, numero, custoCurto } from "@/lib/formato";
 import type { Produto } from "@/lib/tipos";
@@ -29,7 +31,14 @@ export default function NovaEntrada() {
   const router = useRouter();
   const buscaRef = useRef<HTMLInputElement>(null);
 
-  const [fornecedorId, setFornecedorId] = useState(estado.fornecedores[0]?.id ?? "");
+  const { podeCadastrarProduto, podeCadastrarFornecedor } = usePerfil();
+  const fornecedoresAtivos = useMemo(
+    () => estado.fornecedores.filter((f) => f.ativo !== false),
+    [estado.fornecedores],
+  );
+  const [fornecedorId, setFornecedorId] = useState(fornecedoresAtivos[0]?.id ?? "");
+  const [novoProduto, setNovoProduto] = useState(false);
+  const [novoFornecedor, setNovoFornecedor] = useState(false);
   const [documento, setDocumento] = useState("");
   const [busca, setBusca] = useState("");
   const [linhas, setLinhas] = useState<Linha[]>([]);
@@ -128,16 +137,29 @@ export default function NovaEntrada() {
           <Cartao>
             <div className="grid gap-3 sm:grid-cols-2">
               <Campo rotulo="Fornecedor">
+                <div className="flex gap-2">
                 <Selecao
                   value={fornecedorId}
                   onChange={(e) => setFornecedorId(e.target.value)}
                 >
-                  {estado.fornecedores.map((f) => (
+                  {fornecedoresAtivos.map((f) => (
                     <option key={f.id} value={f.id}>
                       {f.razaoSocial}
                     </option>
                   ))}
                 </Selecao>
+                {podeCadastrarFornecedor && (
+                  <Botao
+                    type="button"
+                    onClick={() => setNovoFornecedor(true)}
+                    className="shrink-0 px-2.5"
+                    aria-label="Cadastrar fornecedor novo"
+                    title="Cadastrar fornecedor novo"
+                  >
+                    <Plus size={15} />
+                  </Botao>
+                )}
+                </div>
               </Campo>
               <Campo
                 rotulo="Documento do fornecedor"
@@ -169,6 +191,18 @@ export default function NovaEntrada() {
                 className="w-full rounded-md border border-borda bg-superficie py-2.5 pl-9 pr-3 text-sm focus:border-marca focus:outline-none"
               />
             </div>
+            {busca.trim().length >= 2 && resultados.length === 0 && (
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed border-borda2 px-3 py-2.5">
+                <span className="text-[13px] text-tinta2">
+                  Nenhum produto com &ldquo;{busca.trim()}&rdquo;.
+                </span>
+                {podeCadastrarProduto && (
+                  <Botao tamanho="sm" onClick={() => setNovoProduto(true)}>
+                    <PackagePlus size={13} /> Cadastrar produto novo
+                  </Botao>
+                )}
+              </div>
+            )}
             {resultados.length > 0 && (
               <ul className="mt-2 overflow-hidden rounded-md border border-borda">
                 {resultados.map((p, i) => (
@@ -195,6 +229,14 @@ export default function NovaEntrada() {
                   </li>
                 ))}
               </ul>
+            )}
+            {podeCadastrarProduto && busca.trim().length < 2 && (
+              <button
+                onClick={() => setNovoProduto(true)}
+                className="mt-2.5 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-marca hover:underline"
+              >
+                <PackagePlus size={13} /> Chegou um produto que ainda não está cadastrado?
+              </button>
             )}
           </Cartao>
 
@@ -420,6 +462,19 @@ export default function NovaEntrada() {
           </Aviso>
         </div>
       </div>
+      {/* o produto novo ja entra na carga; o fornecedor novo ja fica selecionado */}
+      <FormProduto
+        aberto={novoProduto}
+        nomeInicial={busca.trim()}
+        semEstoqueInicial
+        onFechar={() => setNovoProduto(false)}
+        onSalvo={(p) => adicionar(p)}
+      />
+      <FormFornecedor
+        aberto={novoFornecedor}
+        onFechar={() => setNovoFornecedor(false)}
+        onSalvo={(f) => setFornecedorId(f.id)}
+      />
     </>
   );
 }

@@ -53,13 +53,9 @@ export default function LayoutSistema({ children }: { children: React.ReactNode 
     setAberto(false);
   }, [caminho]);
 
-  if (!carregado || !estado.usuarioAtualId) {
-    return (
-      <div className="flex min-h-dvh items-center justify-center bg-papel">
-        <p className="text-sm text-suave">Carregando…</p>
-      </div>
-    );
-  }
+  // esqueleto com o menu ja no lugar: a tela nao pisca em branco enquanto
+  // os dados saem do navegador
+  if (!carregado || !estado.usuarioAtualId) return <Esqueleto />;
 
   const itens = MENU.filter((m) => m.ver(papeis));
 
@@ -156,6 +152,44 @@ export default function LayoutSistema({ children }: { children: React.ReactNode 
       <main className="min-w-0 flex-1">
         <div className="mx-auto max-w-[1180px] px-4 py-5 sm:px-5 sm:py-7 lg:px-8 lg:py-9">
           {children}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function Esqueleto() {
+  const bloco = "rounded-lg bg-superficie2 motion-safe:animate-pulse";
+  return (
+    <div className="min-h-dvh lg:flex" aria-busy="true" aria-label="Carregando">
+      <div className="flex items-center border-b border-white/10 bg-marca-escura px-4 py-3 lg:hidden">
+        <p className="text-sm font-bold text-white">Distribuidora</p>
+      </div>
+      <aside className="hidden h-dvh w-60 shrink-0 flex-col bg-marca-escura lg:flex">
+        <div className="border-b border-white/10 px-5 py-5">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-white/40">
+            Mockup
+          </p>
+          <p className="mt-1.5 text-[15px] font-bold leading-tight text-white">
+            Distribuidora
+          </p>
+        </div>
+        <div className="flex flex-col gap-2 p-4">
+          {Array.from({ length: 9 }).map((_, i) => (
+            <div key={i} className="h-7 rounded-md bg-white/[0.06]" />
+          ))}
+        </div>
+      </aside>
+      <main className="min-w-0 flex-1">
+        <div className="mx-auto max-w-[1180px] px-4 py-5 sm:px-5 sm:py-7 lg:px-8 lg:py-9">
+          <div className={`mb-2 h-7 w-48 ${bloco}`} />
+          <div className={`mb-6 h-4 w-72 max-w-full ${bloco}`} />
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className={`h-[92px] sm:h-[118px] ${bloco}`} />
+            ))}
+          </div>
+          <div className={`mt-4 h-[260px] ${bloco}`} />
         </div>
       </main>
     </div>

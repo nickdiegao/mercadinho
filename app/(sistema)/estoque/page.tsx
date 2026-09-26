@@ -1,14 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { AlertTriangle, Beer } from "lucide-react";
+import { useDeferredValue, useMemo, useState } from "react";
+import { AlertTriangle, ArrowDownToLine, Beer, Plus } from "lucide-react";
 import { useEstado, usePerfil } from "@/lib/store";
 import { estoqueValorizado } from "@/lib/regras";
 import { moeda, numero, custoCurto } from "@/lib/formato";
 import { Lista, type ColunaLista } from "@/components/lista";
 import type { Produto } from "@/lib/tipos";
+import { FormProduto } from "@/components/form-produto";
 import {
+  Botao,
   Cabecalho,
   Entrada,
   Etiqueta,
@@ -19,9 +21,11 @@ import {
 
 export default function Estoque() {
   const { estado } = useEstado();
-  const { podeVerCusto } = usePerfil();
+  const { podeVerCusto, podeCadastrarProduto, podeEstoque } = usePerfil();
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("");
+  const [novoAberto, setNovoAberto] = useState(false);
+  const buscaAdiada = useDeferredValue(busca);
 
   const normais = useMemo(
     () => estado.produtos.filter((p) => p.tipo === "NORMAL" && p.ativo),
@@ -37,7 +41,7 @@ export default function Estoque() {
   );
 
   const lista = useMemo(() => {
-    const t = busca.trim().toLowerCase();
+    const t = buscaAdiada.trim().toLowerCase();
     return normais
       .filter((p) => {
         if (filtro === "baixo" && p.saldoAtual > p.estoqueMinimo) return false;
@@ -52,7 +56,7 @@ export default function Estoque() {
           a.saldoAtual / (a.estoqueMinimo || 1) -
           b.saldoAtual / (b.estoqueMinimo || 1),
       );
-  }, [normais, busca, filtro]);
+  }, [normais, buscaAdiada, filtro]);
 
   const abaixo = normais.filter((p) => p.saldoAtual <= p.estoqueMinimo);
 
@@ -77,6 +81,9 @@ export default function Estoque() {
       render: (p) => (
         <span className="flex items-center gap-1.5 text-suave">
           {catPorId.get(p.categoriaId)}
+          {podeVerCusto && p.custoMedio <= 0 && (
+            <Etiqueta tom="negativo">sem custo</Etiqueta>
+          )}
           {p.saldoAtual <= p.estoqueMinimo && (
             <Etiqueta tom="alerta">
               <AlertTriangle size={10} className="mr-1" /> repor
@@ -193,7 +200,30 @@ export default function Estoque() {
       <Cabecalho
         titulo="Estoque"
         descricao="Saldo em unidade base. Toque num produto para ver o extrato completo de movimentações."
+        acoes={
+          (podeCadastrarProduto || podeEstoque) && (
+            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+              {podeCadastrarProduto && (
+                <Botao onClick={() => setNovoAberto(true)}>
+                  <Plus size={15} /> Novo produto
+                </Botao>
+              )}
+              {podeEstoque && (
+                <Link href="/entradas/nova" className="contents">
+                  <Botao variante="primario" className="w-full">
+                    <ArrowDownToLine size={15} /> Dar entrada
+                  </Botao>
+                </Link>
+              )}
+            </div>
+          )
+        }
       />
+      <p className="nao-imprime -mt-2 mb-4 text-[12.5px] leading-relaxed text-suave">
+        <b className="text-tinta2">Novo produto</b> cadastra um item que ainda
+        não existe no sistema. <b className="text-tinta2">Dar entrada</b> registra
+        a mercadoria que chegou — é o que aumenta o saldo e define o custo.
+      </p>
 
       <div className="mb-4 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
         {podeVerCusto && (
@@ -271,6 +301,7 @@ export default function Estoque() {
           vazio="Nenhum vasilhame cadastrado."
         />
       </div>
+      <FormProduto aberto={novoAberto} onFechar={() => setNovoAberto(false)} />
     </>
   );
 }
