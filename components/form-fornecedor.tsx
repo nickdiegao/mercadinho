@@ -70,6 +70,8 @@ function Corpo({
   const { ehAdmin } = usePerfil();
   const [f, setF] = useState<Fornecedor>(inicial);
   const [tentou, setTentou] = useState(false);
+  // trava o botao enquanto grava: no modo banco a resposta vem do servidor
+  const [gravando, setGravando] = useState(false);
   const [buscando, setBuscando] = useState(false);
   const [aviso, setAviso] = useState<{ tom: "ok" | "erro"; texto: string } | null>(null);
 
@@ -126,16 +128,26 @@ function Corpo({
     }
   }
 
+  /** Grava e fecha. Se a gravacao for recusada, o aviso aparece e o painel fica aberto. */
+  async function gravar(fornecedor: Fornecedor) {
+    setGravando(true);
+    try {
+      const gravado = await salvarFornecedor(fornecedor);
+      onSalvo?.(gravado);
+      onFechar();
+    } catch {
+      setGravando(false);
+    }
+  }
+
   function salvar() {
     setTentou(true);
-    if (!valido) return;
-    const gravado = salvarFornecedor({
+    if (!valido || gravando) return;
+    void gravar({
       ...f,
       razaoSocial: f.razaoSocial.trim(),
       cnpj: mascaraCNPJ(f.cnpj),
     });
-    onSalvo?.(gravado);
-    onFechar();
   }
 
   return (
@@ -214,11 +226,8 @@ function Corpo({
             type="button"
             variante={f.ativo !== false ? "perigo" : "secundario"}
             tamanho="sm"
-            onClick={() => {
-              const gravado = salvarFornecedor({ ...f, ativo: f.ativo === false });
-              onSalvo?.(gravado);
-              onFechar();
-            }}
+            disabled={gravando}
+            onClick={() => void gravar({ ...f, ativo: f.ativo === false })}
           >
             {f.ativo !== false ? "Desativar fornecedor" : "Reativar fornecedor"}
           </Botao>
@@ -229,7 +238,7 @@ function Corpo({
           <Botao type="button" onClick={onFechar}>
             Cancelar
           </Botao>
-          <Botao type="button" variante="primario" onClick={salvar}>
+          <Botao type="button" variante="primario" onClick={salvar} disabled={gravando}>
             {novo ? "Cadastrar fornecedor" : "Salvar"}
           </Botao>
         </div>

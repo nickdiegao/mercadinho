@@ -58,6 +58,9 @@ export default function NovaVenda() {
   const [forma, setForma] = useState<FormaPagamento>("DINHEIRO");
   const [descontoTexto, setDescontoTexto] = useState("");
   const [recibo, setRecibo] = useState(true);
+  const [gravando, setGravando] = useState(false);
+  // uma chave por venda: o duplo clique no Finalizar devolve a mesma venda
+  const chave = useRef(novaChave());
 
   const cliente = estado.clientes.find((c) => c.id === clienteId) ?? null;
   const vendaveis = useMemo(
@@ -84,7 +87,7 @@ export default function NovaVenda() {
 
   const itens = linhas.map((l) => {
     const p = estado.produtos.find((x) => x.id === l.produtoId)!;
-    const { tipo, preco, natural, motivo, gelado } = precoAplicavel(p, l.qtd, cliente, l.gelado);
+    const { tipo, preco, motivo, gelado } = precoAplicavel(p, l.qtd, cliente, l.gelado);
     const fator = l.emEmbalagem ? p.fatorConversao : 1;
     return {
       ...l,
@@ -94,7 +97,6 @@ export default function NovaVenda() {
       qtdMostrada: l.qtd / fator,
       tipoPreco: tipo,
       precoUnit: preco,
-      precoNatural: natural,
       // preco que o botao mostra antes de marcar: o gelado desta linha agora
       precoSeGelar: podeGelar(p) ? precoAplicavel(p, l.qtd, cliente, true).preco : 0,
       motivo,
@@ -161,28 +163,31 @@ export default function NovaVenda() {
     );
   }
 
-  function finalizar() {
-    if (!itens.length) return;
-    const venda = registrarVenda({
-      clienteId: clienteId || undefined,
-      itens: itens.map((i) => ({
-        produtoId: i.produtoId,
-        qtd: i.qtd,
-        precoUnit: i.precoUnit,
-        tipoPrecoAplicado: i.tipoPreco,
-        embalagem: i.emEmbalagem
-          ? { unidade: i.produto.unidadeCompra, fator: i.produto.fatorConversao }
-          : undefined,
-        gelado: i.saiGelado,
-        // quanto o gelado cobrou a mais, congelado para o relatorio — sobre o
-        // natural do proprio canal: varejo na lata avulsa, atacado na caixa
-        adicionalGelado: i.saiGelado ? i.precoUnit - i.precoNatural : undefined,
-      })),
-      desconto,
-      formaPagamento: forma,
-      emitirRecibo: recibo,
-    });
-    router.push(`/vendas/${venda.id}`);
+  async function finalizar() {
+    if (!itens.length || gravando) return;
+    setGravando(true);
+    try {
+      // so vai o que a operadora escolheu: preco, gelado e custo quem calcula
+      // e a regra (lib/operacoes.ts) — no modo banco, o servidor
+      const venda = await registrarVenda({
+        clienteId: clienteId || undefined,
+        itens: itens.map((i) => ({
+          produtoId: i.produtoId,
+          qtd: i.qtd,
+          gelado: i.gelado,
+          emEmbalagem: i.emEmbalagem,
+        })),
+        desconto,
+        formaPagamento: forma,
+        emitirRecibo: recibo,
+        chaveIdempotencia: chave.current,
+      });
+      chave.current = novaChave();
+      router.push(`/vendas/${venda.id}`);
+    } catch {
+      // o motivo ja apareceu no aviso; a venda continua na tela para corrigir
+      setGravando(false);
+    }
   }
 
   const semEstoque = itens.filter((i) => i.qtd > i.produto.saldoAtual);
@@ -595,10 +600,10 @@ export default function NovaVenda() {
             <Botao
               variante="primario"
               onClick={finalizar}
-              disabled={!itens.length}
+              disabled={!itens.length || gravando}
               className="mt-4 w-full py-2.5"
             >
-              <Check size={16} /> Finalizar venda
+              <Check size={16} /> {gravando ? "Gravando…" : "Finalizar venda"}
             </Botao>
           </Cartao>
         </div>
@@ -612,3 +617,9 @@ export default function NovaVenda() {
     </>
   );
 }
+
+/** Identifica a venda antes de existir: mesmo clique, mesma chave. */
+const novaChave = () =>
+  typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
