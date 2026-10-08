@@ -118,6 +118,8 @@ function Corpo({
   const [qtdInicial, setQtdInicial] = useState("");
   const [custoInicial, setCustoInicial] = useState("");
   const [tentou, setTentou] = useState(false);
+  // trava o botao enquanto grava: no modo banco a resposta vem do servidor
+  const [gravando, setGravando] = useState(false);
 
   const muda = <K extends keyof Produto>(k: K, v: Produto[K]) =>
     setP((x) => ({ ...x, [k]: v }));
@@ -169,9 +171,9 @@ function Corpo({
   const atacadoEfetivo = pa > 0 ? pa : pv;
   const caixaGelada = p.vendeGelado && pg > pv && pv > 0 ? atacadoEfetivo + (pg - pv) : 0;
 
-  function salvar() {
+  async function salvar() {
     setTentou(true);
-    if (!valido) return;
+    if (!valido || gravando) return;
     const final: Produto = {
       ...p,
       nome: p.nome.trim(),
@@ -189,14 +191,20 @@ function Corpo({
       estoqueMinimo: parseInt(minimo, 10) || 0,
     };
 
-    const gravado = novo
-      ? cadastrarProduto(
-          final,
-          comEstoque ? { qtdCompra: qtdIni, custoUnitCompra: custoIni } : undefined,
-        )
-      : (salvarProduto(final), final);
-    onSalvo?.(gravado);
-    onFechar();
+    setGravando(true);
+    try {
+      const gravado = novo
+        ? await cadastrarProduto(
+            final,
+            comEstoque ? { qtdCompra: qtdIni, custoUnitCompra: custoIni } : undefined,
+          )
+        : await salvarProduto(final);
+      onSalvo?.(gravado);
+      onFechar();
+    } catch {
+      // o motivo ja apareceu no aviso; o formulario continua aberto
+      setGravando(false);
+    }
   }
 
   const margemTexto = (preco: number) =>
@@ -505,7 +513,7 @@ function Corpo({
         <Botao type="button" onClick={onFechar}>
           Cancelar
         </Botao>
-        <Botao type="button" variante="primario" onClick={salvar}>
+        <Botao type="button" variante="primario" onClick={salvar} disabled={gravando}>
           {novo ? "Cadastrar produto" : "Salvar"}
         </Botao>
       </div>

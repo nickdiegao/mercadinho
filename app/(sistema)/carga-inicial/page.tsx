@@ -18,7 +18,7 @@ import {
 } from "@/components/ui";
 
 export default function CargaInicial() {
-  const { estado, ajustarEstoque } = useEstado();
+  const { estado, registrarContagem } = useEstado();
   const [categoria, setCategoria] = useState("");
   const [contagem, setContagem] = useState<Record<string, string>>({});
 
@@ -47,16 +47,21 @@ export default function CargaInicial() {
     0,
   );
 
-  function confirmar() {
-    for (const d of divergentes) {
-      ajustarEstoque(
-        d.produto.id,
-        d.contado,
-        "INVENTARIO_INICIAL",
-        "Contagem do inventário de abertura",
+  async function confirmar() {
+    // a contagem inteira numa gravacao so: ou entra tudo, ou nada
+    try {
+      await registrarContagem(
+        divergentes.map((d) => ({
+          produtoId: d.produto.id,
+          novaQtd: d.contado,
+          tipo: "INVENTARIO_INICIAL" as const,
+          motivo: "Contagem do inventário de abertura",
+        })),
       );
+      setContagem({});
+    } catch {
+      /* o motivo ja apareceu no aviso; a contagem digitada continua */
     }
-    setContagem({});
   }
 
   const diferencaDe = (p: Produto) => {

@@ -64,7 +64,7 @@ export default function Caixa() {
           </Campo>
           <Botao
             variante="primario"
-            onClick={() => abrirCaixa(paraCentavos(fundo))}
+            onClick={() => abrirCaixa(paraCentavos(fundo)).catch(() => {})}
             className="mt-4 w-full"
           >
             <Unlock size={15} /> Abrir caixa
@@ -77,12 +77,16 @@ export default function Caixa() {
   const { sessao, movimentos, esperado, faturado, sangrias, despesas } = r;
   const diferencaPrevia = contado ? paraCentavos(contado) - esperado : null;
 
-  function lancar(tipo: "SANGRIA" | "SUPRIMENTO" | "DESPESA") {
+  async function lancar(tipo: "SANGRIA" | "SUPRIMENTO" | "DESPESA") {
     const v = paraCentavos(valorTexto);
     if (!v || !descricao.trim()) return;
-    lancarCaixa(tipo, tipo === "SUPRIMENTO" ? v : -v, descricao.trim());
-    setValorTexto("");
-    setDescricao("");
+    try {
+      await lancarCaixa(tipo, tipo === "SUPRIMENTO" ? v : -v, descricao.trim());
+      setValorTexto("");
+      setDescricao("");
+    } catch {
+      /* o motivo ja apareceu no aviso; o valor continua digitado */
+    }
   }
 
   const colunasMov: ColunaLista<CaixaMovimento>[] = [
@@ -344,8 +348,9 @@ export default function Caixa() {
             <Botao
               variante="primario"
               onClick={() => {
-                fecharCaixa(paraCentavos(contado));
-                setContado("");
+                fecharCaixa(paraCentavos(contado))
+                  .then(() => setContado(""))
+                  .catch(() => {});
               }}
               disabled={!contado}
               className="mt-3 w-full"

@@ -50,6 +50,7 @@ export default function NovaEntrada() {
   const [documento, setDocumento] = useState("");
   const [busca, setBusca] = useState("");
   const [linhas, setLinhas] = useState<Linha[]>([]);
+  const [gravando, setGravando] = useState(false);
 
   const compraveis = useMemo(
     () => estado.produtos.filter((p) => p.tipo === "NORMAL" && p.ativo),
@@ -138,19 +139,25 @@ export default function NovaEntrada() {
   const remover = (produtoId: string) =>
     setLinhas((ls) => ls.filter((l) => l.produtoId !== produtoId));
 
-  function finalizar() {
-    if (!valido) return;
-    registrarEntrada({
-      fornecedorId,
-      documentoFornecedor: documento || "sem documento",
-      itens: itens.map((i) => ({
-        produtoId: i.produtoId,
-        qtdCompra: i.qtdCompra,
-        custoUnitCompra: i.custoUnitCompra,
-        porUnidade: i.porUnidade,
-      })),
-    });
-    router.push("/entradas");
+  async function finalizar() {
+    if (!valido || gravando) return;
+    setGravando(true);
+    try {
+      await registrarEntrada({
+        fornecedorId,
+        documentoFornecedor: documento || "sem documento",
+        itens: itens.map((i) => ({
+          produtoId: i.produtoId,
+          qtdCompra: i.qtdCompra,
+          custoUnitCompra: i.custoUnitCompra,
+          porUnidade: i.porUnidade,
+        })),
+      });
+      router.push("/entradas");
+    } catch {
+      // o motivo ja apareceu no aviso; a carga continua na tela para corrigir
+      setGravando(false);
+    }
   }
 
   const seletor = (i: (typeof itens)[number]) =>
@@ -480,10 +487,10 @@ export default function NovaEntrada() {
             <Botao
               variante="primario"
               onClick={finalizar}
-              disabled={!valido}
+              disabled={!valido || gravando}
               className="mt-4 w-full py-2.5"
             >
-              <Check size={16} /> Lançar entrada
+              <Check size={16} /> {gravando ? "Gravando…" : "Lançar entrada"}
             </Botao>
           </Cartao>
 

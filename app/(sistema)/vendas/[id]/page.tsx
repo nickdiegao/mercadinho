@@ -410,12 +410,16 @@ function CancelarVenda({
   const fiado = venda.formaPagamento === "FIADO";
   const dinheiro = venda.formaPagamento === "DINHEIRO";
 
-  function confirmar() {
+  async function confirmar() {
     setTentou(true);
     if (motivo.trim().length < 3) return;
-    cancelarVenda(venda.id, motivo.trim());
-    setMotivo("");
-    onFechar();
+    try {
+      await cancelarVenda(venda.id, motivo.trim());
+      setMotivo("");
+      onFechar();
+    } catch {
+      /* o motivo ja apareceu no aviso; o painel continua aberto */
+    }
   }
 
   return (

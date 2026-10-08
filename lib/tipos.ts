@@ -187,6 +187,8 @@ export interface Venda {
   canceladaEm?: string;
   canceladaPor?: string;
   motivoCancelamento?: string;
+  /** Gerada pela tela ao finalizar: o duplo clique devolve a mesma venda. */
+  chaveIdempotencia?: string;
 }
 
 export interface MovimentoEstoque {

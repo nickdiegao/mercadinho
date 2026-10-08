@@ -39,7 +39,7 @@ const MENU = [
 type Papeis = ReturnType<typeof usePerfil>;
 
 export default function LayoutSistema({ children }: { children: React.ReactNode }) {
-  const { estado, carregado, sair, resetar } = useEstado();
+  const { modo, estado, carregado, sair, resetar } = useEstado();
   const papeis = usePerfil();
   const router = useRouter();
   const caminho = usePathname();
@@ -90,7 +90,7 @@ export default function LayoutSistema({ children }: { children: React.ReactNode 
       >
         <div className="hidden border-b border-white/10 px-5 py-5 lg:block">
           <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-white/40">
-            Mockup
+            {modo === "banco" ? "Banco local" : "Mockup"}
           </p>
           <p className="mt-1.5 text-[15px] font-bold leading-tight text-white">
             Distribuidora
@@ -130,21 +130,24 @@ export default function LayoutSistema({ children }: { children: React.ReactNode 
               {papeis.perfil}
             </p>
           </div>
+          {/* no banco local nao existe "voltar ao original": la os dados sao reais */}
+          {modo === "demo" && (
+            <button
+              onClick={resetar}
+              className="transicao flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-[13px] text-white/50 hover:bg-white/[0.07] hover:text-white"
+              title="Volta os dados fictícios ao estado original"
+            >
+              <RotateCcw size={15} /> Recarregar demo
+            </button>
+          )}
           <button
-            onClick={resetar}
-            className="transicao flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-[13px] text-white/50 hover:bg-white/[0.07] hover:text-white"
-            title="Volta os dados fictícios ao estado original"
-          >
-            <RotateCcw size={15} /> Recarregar demo
-          </button>
-          <button
-            onClick={() => {
-              sair();
+            onClick={async () => {
+              await sair();
               router.push("/");
             }}
             className="transicao flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-[13px] text-white/50 hover:bg-white/[0.07] hover:text-white"
           >
-            <LogOut size={15} /> Trocar de perfil
+            <LogOut size={15} /> {modo === "banco" ? "Sair" : "Trocar de perfil"}
           </button>
         </div>
       </aside>

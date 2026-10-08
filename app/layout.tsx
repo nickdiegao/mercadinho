@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from "next";
-import { EstadoProvider } from "@/lib/store";
+import { EstadoProvider, type Modo } from "@/lib/store";
+
+// com DATABASE_URL o sistema roda no Postgres; sem ela (Vercel), e a demonstracao
+const MODO: Modo = process.env.DATABASE_URL ? "banco" : "demo";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -34,7 +37,7 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <EstadoProvider>{children}</EstadoProvider>
+        <EstadoProvider modo={MODO}>{children}</EstadoProvider>
       </body>
     </html>
   );

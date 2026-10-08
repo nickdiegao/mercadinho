@@ -3,9 +3,14 @@
 Sistema de controle de estoque, vendas, caixa e lucro para uma distribuidora de
 bebidas que vende no atacado e no varejo ao mesmo tempo.
 
-**Esta é a fase 1 do projeto: um mockup navegável.** Não tem banco de dados nem
-servidor. Todos os dados são fictícios, gerados no navegador e guardados no
-`localStorage` — nada sai da máquina de quem está vendo.
+O sistema roda de dois jeitos, com o mesmo código:
+
+| Modo | Quando | Dados | Entrada |
+|---|---|---|---|
+| **Demonstração** | sem `DATABASE_URL` — é assim na Vercel | fictícios, no `localStorage` do navegador | escolhendo o perfil |
+| **Banco local** | com `DATABASE_URL` no `.env.local` | Postgres no Docker, no próprio computador | e-mail e senha |
+
+Na demonstração, nada sai da máquina de quem está vendo.
 
 O documento de arquitetura que originou este mockup está em
 [`docs/`](docs), junto com o roteiro de perguntas para a reunião com o cliente.
@@ -22,12 +27,90 @@ npm install
 npm run dev
 ```
 
-Abre em <http://localhost:3000>.
+Abre em <http://localhost:3000>. Sem `.env.local`, é a demonstração.
+
+## Rodar com o banco local
+
+Precisa do [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+aberto.
+
+```bash
+cp .env.example .env.local
+```
+
+Troque o `NEXTAUTH_SECRET` do `.env.local` por um gerado (o comando está no
+próprio arquivo). Depois:
+
+```bash
+npm run banco:preparar
+```
+
+```bash
+npm run dev
+```
+
+O `banco:preparar` liga o Postgres, cria as tabelas e carrega os dados da
+demonstração. Os três usuários (`maria@`, `marcos@` e `jorge@distribuidora.com.br`)
+entram com a `SENHA_INICIAL` do `.env.local`.
+
+| Comando | O que faz |
+|---|---|
+| `npm run banco:subir` / `banco:parar` | liga e desliga o Postgres |
+| `npm run banco:migrar` | cria ou atualiza as tabelas |
+| `npm run banco:semear` | **apaga tudo** e carrega a demonstração |
+| `npm run banco:zerar` | **apaga tudo** e deixa só empresa, usuários e categorias — pronto para os dados reais |
+| `npm run banco:gerar` | depois de mudar `lib/servidor/schema.ts`, gera a migration |
+
+Os dados ficam num volume do Docker, **fora da pasta do projeto** de propósito:
+o OneDrive sincronizando os arquivos de um Postgres ligado corrompe o banco. A
+porta só abre em `127.0.0.1:5433`, então o banco não aparece na rede. O sistema,
+sim: pelo IP do computador, o celular na mesma rede Wi-Fi também entra.
+
+Se o Docker Desktop fechar sozinho ao abrir, com erro sobre `dockerInference`,
+é um arquivo velho travado: renomeie a pasta `%LOCALAPPDATA%\Docker\run` e
+abra de novo.
+
+### Como o banco funciona
+
+```
+tela ── ação ──> app/acoes.ts ── sessão ── permissão ── transação com trava
+                                                              │
+                                     lib/operacoes.ts <───────┘
+                                     (a regra de negócio,
+                                      a mesma da demonstração)
+                                              │ efeitos
+                                              v
+                                     lib/servidor/estado.ts ──> Postgres
+```
+
+- **Uma regra, dois modos.** Cada operação (venda, entrada, cancelamento,
+  caixa, cadastros) é uma função pura em `lib/operacoes.ts` que lê o estado e
+  devolve o que gravar. A demonstração aplica no `localStorage`, o servidor
+  aplica no Postgres. Preço, gelado, embalagem, custo médio e casco não têm
+  duas versões para discordar.
+- **O servidor não confia no navegador.** Recalcula o preço da venda, ignora
+  custo e saldo vindos de formulário, e mantém o preço quando quem salvou não é
+  a administradora. A permissão (`lib/permissoes.ts`) é a mesma que esconde o
+  botão na tela — mas aqui ela recusa.
+- **Cada perfil recebe só o que pode ver.** O caixa não recebe custo nem lucro,
+  nem as entradas de mercadoria (`lib/redigir.ts`). Esconder na tela não
+  bastaria: o dado chegaria no navegador.
+- **Tudo ou nada.** A venda grava venda, itens, baixa de estoque, casco, caixa
+  e recibo numa transação. Uma trava (`pg_advisory_xact_lock`) faz as gravações
+  saírem uma de cada vez: duas vendas simultâneas nunca pegam o mesmo número
+  nem perdem baixa de estoque. O duplo clique no "Finalizar" devolve a mesma
+  venda (chave de idempotência).
+- **O banco é a última defesa.** Constraints recusam preço negativo,
+  quantidade zero e dois caixas abertos; um gatilho faz o razão do estoque e a
+  auditoria só aceitarem inserção.
+- **Login** com e-mail e senha (next-auth, hash bcrypt de custo 12, cookie
+  `httpOnly`). Cinco senhas erradas travam a conta por 15 minutos. Toda
+  entrada e toda falha vão para a auditoria.
 
 ## Publicar na Vercel
 
-O projeto é um Next.js padrão, sem variável de ambiente nenhuma. Importe o
-repositório na Vercel e aceite os padrões — não precisa configurar nada.
+O projeto é um Next.js padrão. Sem variável de ambiente, a Vercel publica a
+demonstração — não precisa configurar nada.
 
 ```bash
 npx vercel
@@ -142,13 +225,25 @@ dado pessoal e nunca sai do navegador.
 
 ```
 app/
-  page.tsx              login por perfil
+  page.tsx              entrada: perfil (demo) ou e-mail e senha (banco)
   (sistema)/            as 12 telas, atrás do login
+  acoes.ts              as ações do servidor: única porta para o banco
+  api/auth/             login (next-auth)
 lib/
   tipos.ts              o modelo de dados das 15 tabelas
   regras.ts             as cinco regras de negócio
+  operacoes.ts          cada operação como função pura que devolve o que gravar
+  permissoes.ts         quem pode o quê — a tela e o servidor usam a mesma
+  redigir.ts            o que cada perfil recebe do servidor
   seed.ts               catálogo fictício + 60 dias de histórico
-  store.tsx             estado + localStorage (vira Postgres na fase 2)
+  store.tsx             estado das telas, nos dois modos
+  servidor/
+    schema.ts           as 15 tabelas no Postgres (Drizzle)
+    estado.ts           leitura, gravação e carga do banco
+    auth.ts             login, bloqueio e sessão
+drizzle/                migrations (inclui o gatilho de só-inserção)
+scripts/banco.ts        migrar, semear e zerar
+docker-compose.yml      o Postgres local
   consultas.ts          leituras derivadas (painel, relatórios)
   exportar.ts           PDF, Excel e CSV
   documentos.ts         CPF, CNPJ, telefone e consulta à Receita
@@ -189,9 +284,17 @@ Três formatos, porque são três necessidades diferentes:
   `;` e decimal com vírgula: é o que faz o Excel brasileiro abrir o arquivo com
   acento correto e em colunas separadas.
 
-## O que este mockup não é
+## O que ainda não é
 
-- Não tem banco de dados, login real nem servidor
+- A demonstração não tem banco nem login: o banco local roda só no computador
+  onde está o Docker
+- O banco local ainda não tem **backup automático** nem botão de baixar
+  backup, **troca de senha** pela tela, nem **cadastro de usuários** — os três
+  usuários vêm do `banco:semear` / `banco:zerar`
+- Saldo negativo ainda é permitido (como na demonstração); o blueprint quer
+  bloquear, com liberação pela administradora
+- O estado inteiro vai para a tela de uma vez: serve a uma loja com alguns
+  milhares de vendas, e vai precisar de paginação quando o histórico crescer
 - Não emite nota fiscal — o recibo não tem valor fiscal
 - O WhatsApp leva o recibo em texto, não o PDF anexado — anexar arquivo exige a
   API oficial do WhatsApp, que é paga

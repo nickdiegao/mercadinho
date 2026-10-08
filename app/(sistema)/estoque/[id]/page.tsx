@@ -67,13 +67,17 @@ export default function Kardex({ params }: { params: Promise<{ id: string }> }) 
 
   const casco = produto.tipo === "VASILHAME";
 
-  function salvarAjuste() {
+  async function salvarAjuste() {
     const q = parseFloat(novaQtd.replace(",", "."));
     if (Number.isNaN(q) || !motivo.trim()) return;
-    ajustarEstoque(produto!.id, q, tipo, motivo.trim());
-    setAjustando(false);
-    setNovaQtd("");
-    setMotivo("");
+    try {
+      await ajustarEstoque(produto!.id, q, tipo, motivo.trim());
+      setAjustando(false);
+      setNovaQtd("");
+      setMotivo("");
+    } catch {
+      /* o motivo ja apareceu no aviso; o ajuste continua aberto */
+    }
   }
 
   return (
