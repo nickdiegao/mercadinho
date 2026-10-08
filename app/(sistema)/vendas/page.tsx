@@ -190,7 +190,6 @@ export default function Vendas() {
                 titulo: "Tabela",
                 papel: "apoio",
                 render: (i) => {
-                  const p = produtoPorId.get(i.produtoId);
                   return (
                     <>
                       {i.tipoPrecoAplicado === "ATACADO" ? "atacado" : "varejo"}
@@ -199,8 +198,11 @@ export default function Vendas() {
                           <Snowflake size={10} /> gelado
                         </span>
                       )}
-                      {p && p.fatorConversao > 1 && (
-                        <> · {numero(i.qtd / p.fatorConversao)} {p.unidadeCompra}</>
+                      {i.embalagem && (
+                        <>
+                          {" "}· {numero(i.qtd / i.embalagem.fator)} {i.embalagem.unidade} c/{" "}
+                          {i.embalagem.fator}
+                        </>
                       )}
                     </>
                   );

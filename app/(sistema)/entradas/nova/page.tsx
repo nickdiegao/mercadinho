@@ -8,6 +8,7 @@ import { FormProduto } from "@/components/form-produto";
 import { FormFornecedor } from "@/components/form-fornecedor";
 import { custoUnitBase, novoCustoMedio, paraBase } from "@/lib/regras";
 import { moeda, numero, custoCurto } from "@/lib/formato";
+import { nomeEmbalagem, rotuloEmbalagem, saldoContado, temEmbalagem } from "@/lib/embalagem";
 import type { Produto } from "@/lib/tipos";
 import {
   Aviso,
@@ -22,9 +23,16 @@ import {
 
 interface Linha {
   produtoId: string;
+  /** Na embalagem do produto, ou em unidade quando `porUnidade`. */
   qtdCompra: number;
+  /** Custo de cada embalagem — ou de cada unidade, quando `porUnidade`. */
   custoTexto: string;
+  /** Chegou avulso (6 garrafas), nao em caixa fechada. */
+  porUnidade: boolean;
 }
+
+const paraTexto = (centavos: number) => (centavos / 100).toFixed(2).replace(".", ",");
+const paraCentavos = (t: string) => Math.round((parseFloat(t.replace(",", ".")) || 0) * 100);
 
 export default function NovaEntrada() {
   const { estado, registrarEntrada } = useEstado();
@@ -60,15 +68,17 @@ export default function NovaEntrada() {
 
   const itens = linhas.map((l) => {
     const p = estado.produtos.find((x) => x.id === l.produtoId)!;
-    const custoUnitCompra = Math.round(
-      (parseFloat(l.custoTexto.replace(",", ".")) || 0) * 100,
-    );
-    const qtdBase = paraBase(l.qtdCompra, p.fatorConversao);
-    const cBase = custoUnitBase(custoUnitCompra, p.fatorConversao);
+    const custoUnitCompra = paraCentavos(l.custoTexto);
+    // avulso: cada "embalagem" e uma unidade so
+    const fator = l.porUnidade ? 1 : p.fatorConversao;
+    const qtdBase = paraBase(l.qtdCompra, fator);
+    const cBase = custoUnitBase(custoUnitCompra, fator);
     const cmpDepois = novoCustoMedio(p.saldoAtual, p.custoMedio, qtdBase, cBase);
     return {
       ...l,
       produto: p,
+      /** "cx", "fd"… ou "un", para os rotulos da linha */
+      sigla: l.porUnidade ? "un" : p.unidadeCompra.toLowerCase(),
       custoUnitCompra,
       qtdBase,
       custoUnitBase: cBase,
@@ -82,17 +92,18 @@ export default function NovaEntrada() {
   const valido =
     itens.length > 0 && itens.every((i) => i.custoUnitCompra > 0 && i.qtdCompra > 0);
 
-  function adicionar(p: Produto) {
+  function adicionar(p: Produto, porUnidade = !temEmbalagem(p)) {
     setLinhas((ls) => {
       if (ls.some((l) => l.produtoId === p.id)) return ls;
+      const fator = porUnidade ? 1 : p.fatorConversao;
       return [
         ...ls,
         {
           produtoId: p.id,
           qtdCompra: 1,
-          custoTexto: ((p.custoUltimaCompra * p.fatorConversao) / 10000)
-            .toFixed(2)
-            .replace(".", ","),
+          // sugere o ultimo custo pago, no formato escolhido
+          custoTexto: paraTexto(Math.round((p.custoUltimaCompra * fator) / 100)),
+          porUnidade,
         },
       ];
     });
@@ -104,6 +115,25 @@ export default function NovaEntrada() {
     setLinhas((ls) =>
       ls.map((l) => (l.produtoId === produtoId ? { ...l, [campo]: valor } : l)),
     );
+
+  /** Troca entre caixa e unidade, convertendo quantidade e custo. */
+  function trocarFormato(produtoId: string, porUnidade: boolean) {
+    setLinhas((ls) =>
+      ls.map((l) => {
+        if (l.produtoId !== produtoId || l.porUnidade === porUnidade) return l;
+        const fator = estado.produtos.find((x) => x.id === produtoId)!.fatorConversao;
+        const custo = paraCentavos(l.custoTexto);
+        return porUnidade
+          ? { ...l, porUnidade, qtdCompra: l.qtdCompra * fator, custoTexto: paraTexto(Math.round(custo / fator)) }
+          : {
+              ...l,
+              porUnidade,
+              qtdCompra: Math.max(1, Math.round(l.qtdCompra / fator)),
+              custoTexto: paraTexto(custo * fator),
+            };
+      }),
+    );
+  }
 
   const remover = (produtoId: string) =>
     setLinhas((ls) => ls.filter((l) => l.produtoId !== produtoId));
@@ -117,10 +147,37 @@ export default function NovaEntrada() {
         produtoId: i.produtoId,
         qtdCompra: i.qtdCompra,
         custoUnitCompra: i.custoUnitCompra,
+        porUnidade: i.porUnidade,
       })),
     });
     router.push("/entradas");
   }
+
+  const seletor = (i: (typeof itens)[number]) =>
+    temEmbalagem(i.produto) ? (
+      <span
+        role="group"
+        aria-label="Chegou em"
+        className="mt-1 inline-flex rounded-full border border-borda2 p-0.5 text-[11px]"
+      >
+        {[false, true].map((un) => (
+          <button
+            key={String(un)}
+            onClick={() => trocarFormato(i.produtoId, un)}
+            aria-pressed={i.porUnidade === un}
+            className={`transicao whitespace-nowrap rounded-full px-2 py-0.5 font-semibold ${
+              i.porUnidade === un ? "bg-marca text-white" : "text-tinta2 hover:text-marca"
+            }`}
+          >
+            {un
+              ? "Unidade"
+              : `${rotuloEmbalagem(i.produto.unidadeCompra)} c/ ${i.produto.fatorConversao}`}
+          </button>
+        ))}
+      </span>
+    ) : (
+      <span className="text-[11.5px] text-suave">por unidade</span>
+    );
 
   const campoNum =
     "tabular w-full rounded border border-borda px-2 py-1.5 text-right text-sm focus:border-marca focus:outline-none";
@@ -129,7 +186,7 @@ export default function NovaEntrada() {
     <>
       <Cabecalho
         titulo="Entrada de mercadoria"
-        descricao="Lance a carga em caixa, fardo ou engradado. O sistema converte para unidade e recalcula o custo médio."
+        descricao="Lance a carga em caixa, fardo, engradado ou por unidade avulsa. O sistema converte tudo para unidade e recalcula o custo médio."
       />
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -206,26 +263,44 @@ export default function NovaEntrada() {
             {resultados.length > 0 && (
               <ul className="mt-2 overflow-hidden rounded-md border border-borda">
                 {resultados.map((p, i) => (
-                  <li key={p.id}>
+                  <li
+                    key={p.id}
+                    className={`flex items-center gap-2 border-b border-borda px-3 py-2 last:border-b-0 ${
+                      i === 0 ? "bg-superficie2/60" : ""
+                    }`}
+                  >
                     <button
                       onClick={() => adicionar(p)}
-                      className={`transicao flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-marca-clara ${
-                        i === 0 ? "bg-superficie2/60" : ""
-                      }`}
+                      className="transicao min-w-0 flex-1 rounded py-0.5 text-left hover:text-marca"
                     >
-                      <span className="min-w-0">
-                        <span className="block truncate text-[13.5px] font-medium">
-                          {p.nome}
-                        </span>
-                        <span className="text-[11.5px] text-suave">
-                          saldo {numero(p.saldoAtual)} un · 1 {p.unidadeCompra} ={" "}
-                          {p.fatorConversao} un
-                        </span>
+                      <span className="line-clamp-2 block text-[13.5px] font-medium leading-snug">
+                        {p.nome}
                       </span>
-                      <span className="hidden shrink-0 text-[11.5px] text-suave sm:block">
-                        custo médio {custoCurto(p.custoMedio)}
+                      <span className="tabular block text-[11.5px] text-suave">
+                        estoque {saldoContado(p)}
+                        {temEmbalagem(p) &&
+                          ` · ${nomeEmbalagem(p.unidadeCompra)} com ${p.fatorConversao}`}
+                        <span className="hidden sm:inline"> · custo médio {custoCurto(p.custoMedio)}</span>
                       </span>
                     </button>
+                    <span className="flex shrink-0 gap-1.5">
+                      {temEmbalagem(p) && (
+                        <button
+                          onClick={() => adicionar(p, false)}
+                          aria-label={`Lançar em ${nomeEmbalagem(p.unidadeCompra)} ${p.nome}`}
+                          className="transicao rounded-md border border-marca/40 bg-marca-clara/60 px-2 py-1 text-[11.5px] font-semibold text-marca hover:border-marca hover:bg-marca-clara"
+                        >
+                          + {p.unidadeCompra.toLowerCase()}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => adicionar(p, true)}
+                        aria-label={`Lançar em unidade ${p.nome}`}
+                        className="transicao rounded-md border border-borda2 bg-superficie px-2 py-1 text-[11.5px] font-semibold text-tinta2 hover:border-marca hover:bg-marca-clara"
+                      >
+                        + un
+                      </button>
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -254,9 +329,7 @@ export default function NovaEntrada() {
                         <p className="truncate text-[14px] font-semibold text-tinta">
                           {i.produto.nome}
                         </p>
-                        <p className="text-[11.5px] text-suave">
-                          {i.produto.unidadeCompra} com {i.produto.fatorConversao} un
-                        </p>
+                        {seletor(i)}
                       </div>
                       <button
                         onClick={() => remover(i.produtoId)}
@@ -270,7 +343,7 @@ export default function NovaEntrada() {
                     <div className="mt-3 grid grid-cols-2 gap-3">
                       <label className="block">
                         <span className="mb-1 block text-[10px] font-bold uppercase tracking-[0.06em] text-suave">
-                          Qtd em {i.produto.unidadeCompra}
+                          Qtd em {i.sigla}
                         </span>
                         <input
                           value={i.qtdCompra}
@@ -283,7 +356,7 @@ export default function NovaEntrada() {
                       </label>
                       <label className="block">
                         <span className="mb-1 block text-[10px] font-bold uppercase tracking-[0.06em] text-suave">
-                          Custo por {i.produto.unidadeCompra} (R$)
+                          Custo por {i.sigla} (R$)
                         </span>
                         <input
                           value={i.custoTexto}
@@ -316,7 +389,7 @@ export default function NovaEntrada() {
                     <tr>
                       <Cab>Produto</Cab>
                       <Cab alinha="right">Qtd</Cab>
-                      <Cab alinha="right">Custo por embalagem</Cab>
+                      <Cab alinha="right">Custo de cada</Cab>
                       <Cab alinha="right">Vira</Cab>
                       <Cab alinha="right">Total</Cab>
                       <Cab />
@@ -329,9 +402,7 @@ export default function NovaEntrada() {
                           <span className="block truncate font-medium text-tinta">
                             {i.produto.nome}
                           </span>
-                          <span className="text-[11.5px] text-suave">
-                            {i.produto.unidadeCompra} com {i.produto.fatorConversao} un
-                          </span>
+                          {seletor(i)}
                         </Cel>
                         <Cel alinha="right">
                           <input
@@ -343,6 +414,7 @@ export default function NovaEntrada() {
                             aria-label={`Quantidade de ${i.produto.nome}`}
                             className={`${campoNum} w-16`}
                           />
+                          <span className="mt-0.5 block text-[11px] text-suave">{i.sigla}</span>
                         </Cel>
                         <Cel alinha="right">
                           <input
@@ -354,6 +426,7 @@ export default function NovaEntrada() {
                             aria-label={`Custo de ${i.produto.nome}`}
                             className={`${campoNum} w-24`}
                           />
+                          <span className="mt-0.5 block text-[11px] text-suave">por {i.sigla}</span>
                         </Cel>
                         <Cel alinha="right" className="text-suave">
                           {numero(i.qtdBase)} un

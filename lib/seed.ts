@@ -420,9 +420,10 @@ export function gerarEstado(): Estado {
         qtd = Math.min(qtd, Math.max(0, Math.floor(p.saldoAtual)));
         if (qtd <= 0) continue;
 
-        // no balcao, boa parte de quem leva cerveja e refrigerante quer gelado
-        const querGelado = !atacado && p.vendeGelado === true && chance(0.55);
-        const { tipo, preco, gelado } = precoAplicavel(p, qtd, cliente, querGelado);
+        // no balcao, boa parte de quem leva cerveja e refrigerante quer gelado;
+        // no atacado, alguns bares levam a caixa ja gelada
+        const querGelado = p.vendeGelado === true && chance(atacado ? 0.1 : 0.55);
+        const { tipo, preco, natural, gelado } = precoAplicavel(p, qtd, cliente, querGelado);
         itens.push({
           id: id("vi"),
           produtoId: p.id,
@@ -431,8 +432,12 @@ export function gerarEstado(): Estado {
           precoUnit: preco,
           custoUnit: p.custoMedio, // regra 3: congela aqui
           tipoPrecoAplicado: tipo,
+          // no atacado a quantidade ja sai em caixas fechadas (fator x 1..4)
+          ...(atacado && qtd % p.fatorConversao === 0 && p.fatorConversao > 1
+            ? { embalagem: { unidade: p.unidadeCompra, fator: p.fatorConversao } }
+            : {}),
           ...(gelado
-            ? { gelado: true, adicionalGelado: preco - p.precoVarejo }
+            ? { gelado: true, adicionalGelado: preco - natural }
             : {}),
           total: totalItem(qtd, preco),
         });

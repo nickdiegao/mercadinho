@@ -5,6 +5,9 @@
  *   npm i playwright-core                        (nesta pasta, uma vez)
  *   node capturar.mjs
  *
+ * Tambem roda contra o servidor de desenvolvimento, sem a bolinha do Next:
+ *   BASE=http://localhost:3830 node capturar.mjs
+ *
  * Usa o Chrome instalado na maquina. Zera o localStorage antes: os dados
  * dos prints sao sempre os ficticios do seed.
  */
@@ -13,12 +16,23 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
 
-const PASTA = join(dirname(fileURLToPath(import.meta.url)), "shots");
+// contra o servidor de desenvolvimento, grave fora do projeto (SAIDA=...) e copie
+// depois: arquivo novo dentro do projeto faz o Next recompilar no meio do roteiro
+const PASTA = process.env.SAIDA ?? join(dirname(fileURLToPath(import.meta.url)), "shots");
 mkdirSync(PASTA, { recursive: true });
 process.chdir(PASTA);
 
 const CHROME = "C:/Program Files/Google/Chrome/Application/chrome.exe";
-const BASE = "http://localhost:3001";
+const BASE = process.env.BASE ?? "http://localhost:3001";
+
+/** Some com o indicador do modo de desenvolvimento, que nao existe em producao. */
+const semIndicador = () => {
+  document.addEventListener("DOMContentLoaded", () => {
+    const s = document.createElement("style");
+    s.textContent = "nextjs-portal{display:none!important}";
+    document.head.appendChild(s);
+  });
+};
 
 const nav = await chromium.launch({ executablePath: CHROME, headless: true });
 const ctx = await nav.newContext({
@@ -26,6 +40,7 @@ const ctx = await nav.newContext({
   deviceScaleFactor: 2,
   locale: "pt-BR",
 });
+await ctx.addInitScript(semIndicador);
 const pg = await ctx.newPage();
 const erros = [];
 pg.on("pageerror", (e) => erros.push(String(e)));
@@ -68,21 +83,34 @@ await pg.locator("button", { hasText: "Maria Conceição" }).first().click();
 await espera(1500);
 
 // ---------------------------------------------------------------- venda
+// tres jeitos na mesma venda: engradado natural, caixa gelada e lata avulsa gelada
 await ir("/vendas/nova");
 const busca = pg.locator('input[placeholder*="Buscar produto"]');
+const primeiro = () => pg.locator("main ul").first().locator("li").first();
 await busca.fill("Cerveja Pilsen Garrafa");
 await espera(600);
-await pg.locator("ul li button").first().click();
-await espera(500);
-await pg.locator("button", { hasText: "= 24 un" }).first().click();
+await primeiro().locator('button[aria-label^="Adicionar 1 engradado"]').click();
 await espera(500);
 await busca.fill("Cerveja Pilsen Lata 350");
 await espera(600);
-await pg.locator("ul li button").first().click();
+await primeiro().locator('button[aria-label^="Adicionar 1 caixa"]').click();
 await espera(500);
-await pg.locator("button", { hasText: /^gelado R\$/ }).first().click();
+await pg.locator("li", { hasText: "Cerveja Pilsen Lata 350ml" }).first()
+  .locator("button", { hasText: /^gelado R\$/ }).click();
+await espera(400);
+await busca.fill("Coca-Cola 600");
 await espera(600);
-await foto("04-venda.png", 860);
+await primeiro().locator('button[aria-label^="Adicionar 1 unidade"]').click();
+await espera(500);
+await pg.locator("li", { hasText: "Coca-Cola 600ml" }).first()
+  .locator("button", { hasText: /^gelado R\$/ }).click();
+await espera(400);
+// a busca aberta mostra os dois botoes de cada produto
+await busca.fill("Cerveja Pilsen");
+await espera(700);
+await foto("04-venda.png", 1000);
+await busca.fill("");
+await espera(400);
 
 // ---------------------------------------------------------------- recibo e cancelamento
 const idVenda = await pg.evaluate(() => {
@@ -104,13 +132,19 @@ await pg.keyboard.press("Escape");
 // ---------------------------------------------------------------- entrada, estoque, produtos
 await ir("/entradas/nova");
 const buscaEnt = pg.locator('input[placeholder*="Buscar produto"]');
-for (const termo of ["Coca-Cola 2L", "Cerveja Pilsen Lata 350"]) {
-  await buscaEnt.fill(termo);
-  await espera(600);
-  await pg.locator("ul li button").first().click();
-  await espera(400);
-}
-await pg.locator("table input").first().fill("10");
+const primeiroEnt = () => pg.locator("main ul").first().locator("li").first();
+// fardos fechados e garrafas avulsas na mesma carga
+await buscaEnt.fill("Coca-Cola 2L");
+await espera(600);
+await primeiroEnt().locator('button[aria-label^="Lançar em fardo"]').click();
+await espera(400);
+await pg.locator("tr", { hasText: "Coca-Cola 2L" }).first().locator("input").first().fill("10");
+await buscaEnt.fill("Whisky Nacional");
+await espera(600);
+await primeiroEnt().locator('button[aria-label^="Lançar em unidade"]').click();
+await espera(400);
+await pg.locator("tr", { hasText: "Whisky Nacional 1L" }).first().locator("input").first().fill("6");
+await espera(500);
 await foto("07-entrada.png", 800);
 
 await ir("/estoque");
@@ -146,11 +180,13 @@ await foto("11-relatorios.png", 760);
 
 const titGelado = pg.getByText("Gelado — a geladeira se paga?");
 await titGelado.scrollIntoViewIfNeeded();
-await pg.locator('input[placeholder="0,00"]').last().fill("250,00");
+await pg.locator('input[placeholder="0,00"]').last().fill("600,00");
 await espera(500);
 const cartao = titGelado.locator("xpath=ancestor::*[contains(@class,'rounded')][1]");
 await cartao.screenshot({ path: "19-gelado.png" });
 console.log("ok: 19-gelado.png");
+// numeros do cartao, para conferir a legenda do manual
+console.log("gelado:", (await cartao.innerText()).replace(/\s+/g, " ").slice(0, 300));
 
 await ir("/carga-inicial");
 await foto("12-carga-inicial.png", 720);
@@ -183,6 +219,7 @@ const ctxMob = await nav.newContext({
   isMobile: true,
   hasTouch: true,
 });
+await ctxMob.addInitScript(semIndicador);
 const mob = await ctxMob.newPage();
 await mob.goto(BASE, { waitUntil: "networkidle" });
 await mob.waitForTimeout(1300);

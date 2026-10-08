@@ -44,17 +44,22 @@ const novoId = (p: string) =>
 
 interface ItemNovaVenda {
   produtoId: string;
+  /** Sempre em unidade, mesmo vendendo em caixa. */
   qtd: number;
   precoUnit: number;
   tipoPrecoAplicado: TipoPreco;
+  embalagem?: VendaItem["embalagem"];
   gelado?: boolean;
   adicionalGelado?: number;
 }
 
 interface ItemNovaEntrada {
   produtoId: string;
+  /** Na embalagem do produto, ou em unidade quando `porUnidade`. */
   qtdCompra: number;
   custoUnitCompra: number;
+  /** Chegou avulso: 6 garrafas, nao 1 caixa. Quantidade e custo por unidade. */
+  porUnidade?: boolean;
 }
 
 interface Ctx {
@@ -197,6 +202,7 @@ export function EstadoProvider({ children }: { children: ReactNode }) {
             precoUnit: i.precoUnit,
             custoUnit: p.custoMedio, // regra 3: congela o custo aqui
             tipoPrecoAplicado: i.tipoPrecoAplicado,
+            ...(i.embalagem ? { embalagem: i.embalagem } : {}),
             ...(i.gelado
               ? { gelado: true, adicionalGelado: i.adicionalGelado ?? 0 }
               : {}),
@@ -317,8 +323,10 @@ export function EstadoProvider({ children }: { children: ReactNode }) {
 
         for (const i of dados.itens) {
           const p = st.produtos.find((x) => x.id === i.produtoId)!;
-          const qtdBase = paraBase(i.qtdCompra, p.fatorConversao);
-          const cBase = custoUnitBase(i.custoUnitCompra, p.fatorConversao);
+          // avulso: cada "embalagem" e uma unidade so
+          const fator = i.porUnidade ? 1 : p.fatorConversao;
+          const qtdBase = paraBase(i.qtdCompra, fator);
+          const cBase = custoUnitBase(i.custoUnitCompra, fator);
 
           // regra 2: o custo medio so muda aqui
           p.custoMedio = novoCustoMedio(p.saldoAtual, p.custoMedio, qtdBase, cBase);
@@ -329,8 +337,8 @@ export function EstadoProvider({ children }: { children: ReactNode }) {
             id: novoId("ei"),
             produtoId: p.id,
             qtdCompra: i.qtdCompra,
-            unidadeCompra: p.unidadeCompra,
-            fatorConversao: p.fatorConversao,
+            unidadeCompra: i.porUnidade ? "UN" : p.unidadeCompra,
+            fatorConversao: fator,
             qtdBase,
             custoUnitCompra: i.custoUnitCompra,
             custoUnitBase: cBase,

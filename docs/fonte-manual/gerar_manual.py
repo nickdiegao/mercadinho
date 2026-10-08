@@ -319,7 +319,7 @@ def montar():
         "de computador, só ler e seguir.", st_capa_s))
     h.append(Spacer(1, 30))
     h.append(Paragraph(
-        "Versão de demonstração · 2ª edição, setembro de 2026<br/>"
+        "Versão de demonstração · 3ª edição, outubro de 2026<br/>"
         "Os dados que aparecem nas telas deste manual são fictícios, "
         "criados só para mostrar o sistema funcionando.", st_capa_p))
     h.append(PageBreak())
@@ -416,40 +416,49 @@ def montar():
     h.append(p("É a tela que você mais vai usar. Ela foi feita para ser rápida."))
     h.append(passos([
         "Toque em <b>Nova venda</b> no menu.",
-        "Digite o nome do produto na busca e toque nele para adicionar.",
-        "Ajuste a quantidade nos botões <b>−</b> e <b>+</b>, ou digite direto.",
+        "Digite o nome do produto na busca. Cada um aparece com dois botões, "
+        "já com o preço: <b>+ 1 un</b> para a unidade avulsa e <b>+ 1 cx</b> "
+        "(ou <b>fd</b>, <b>eng</b>) para a caixa fechada.",
+        "Ajuste a quantidade nos botões <b>−</b> e <b>+</b>, ou digite direto. "
+        "Ela conta no formato escolhido: em caixa, o <b>+</b> soma uma caixa "
+        "inteira.",
         "Se o cliente quer a bebida gelada, toque em <b>gelado</b> embaixo do "
-        "item. O preço troca na hora para o preço gelado.",
+        "item. Vale para a lata avulsa e para a caixa fechada.",
         "Escolha o cliente, se for uma venda para empresa. Se for cliente de "
         "balcão, deixe em <b>Consumidor final</b>. Cliente novo? Toque em "
         "<b>Novo</b>, ao lado de Cliente — ele é cadastrado e já fica escolhido.",
         "Toque na forma de pagamento e depois em <b>Finalizar venda</b>.",
     ]))
     h.append(imagem("04-venda.png",
-                    "Duas regras de preço numa venda só: as 24 garrafas viraram "
-                    "atacado sozinhas, e saem 24 cascos junto. A lata avulsa saiu "
-                    "gelada, pelo preço gelado."))
+                    "Em cima, a busca com os dois botões de cada produto. Embaixo, "
+                    "três jeitos numa venda só: um engradado de 24 garrafas, que sai "
+                    "no atacado com 24 cascos junto; uma caixa de latas gelada; e "
+                    "uma Coca avulsa gelada.",
+                    alt_max=150 * mm))
 
     h.append(caixa(
-        "O atalho que economiza tempo",
-        "Repare no link azul <b>1 ENG = 24 un</b> embaixo do produto. Tocar "
-        "nele preenche a caixa fechada de uma vez, em vez de você apertar o "
-        "<b>+</b> vinte e quatro vezes. Todo produto tem esse atalho, com o "
-        "número da embalagem dele.",
+        "Unidade ou caixa: quem escolhe é você",
+        "Embaixo de cada item tem <b>Unidade | Caixa c/ 12</b> — ou Fardo, ou "
+        "Engradado, conforme a embalagem do produto. Dá para trocar a qualquer "
+        "momento. Ao lado aparece o estoque do jeito que se conta no depósito, "
+        "como <b>83 cx + 4 un</b>. O botão da caixa só libera quando o estoque "
+        "fecha pelo menos uma caixa inteira.",
         tom="bom"))
 
     h.append(caixa(
-        "Gelado é só no varejo",
-        "Quando o item vira atacado — porque o cliente é de atacado ou porque "
-        "a quantidade chegou no mínimo —, o botão muda para <b>atacado sai "
-        "natural</b> e fica travado. Quem compra caixa fechada paga o preço de "
-        "atacado, sem o acréscimo da geladeira. O botão só aparece nos "
-        "produtos que você marcou como <b>Vende gelado</b> no cadastro."))
+        "Caixa e fardo também saem gelados",
+        "Na caixa fechada, o gelado soma ao preço de atacado o mesmo acréscimo "
+        "por unidade que ele cobra na lata avulsa. Exemplo: a lata custa R$ 4,50 "
+        "natural e R$ 5,20 gelada — o gelado cobra R$ 0,70 a mais. A caixa de 12, "
+        "que no atacado sai a R$ 3,80 a lata, sai gelada a R$ 4,50 a lata: "
+        "R$ 54,00 a caixa. O botão <b>gelado</b> só aparece nos produtos "
+        "marcados como <b>Vende gelado</b> no cadastro."))
 
     h.append(sub("Passo 3 — Entregar o recibo"))
     h.append(p("Se você deixou marcado <b>Emitir recibo ao finalizar</b>, o "
-               "sistema já abre o documento pronto. No alto da tela tem três "
-               "jeitos de entregar:"))
+               "sistema já abre o documento pronto. O que foi vendido em caixa "
+               "sai como <b>2 CX c/ 12</b>, com o valor da caixa. No alto da tela "
+               "tem três jeitos de entregar:"))
     h.append(tabela(
         ["Botão", "O que faz"],
         [
@@ -506,13 +515,17 @@ def montar():
     h.append(passos([
         "Toque em <b>Entradas</b> e depois em <b>Nova entrada</b>.",
         "Escolha o fornecedor e digite o número da nota que veio com a carga.",
-        "Busque cada produto e toque para adicionar.",
-        "Digite <b>quantas caixas</b> chegaram e <b>quanto custou cada caixa</b>.",
+        "Busque cada produto e toque em <b>+ cx</b> (ou <b>fd</b>, <b>eng</b>) "
+        "se chegou em embalagem fechada, ou em <b>+ un</b> se chegou avulso.",
+        "Digite <b>quantas</b> chegaram e <b>quanto custou cada uma</b> — "
+        "caixa ou unidade, conforme o que você escolheu. Dá para trocar depois, "
+        "no próprio item: o sistema converte a quantidade e o custo.",
         "Confira o total e toque em <b>Lançar entrada</b>.",
     ]))
     h.append(imagem("07-entrada.png",
-                    "Lançamento de carga. Você digita em caixa ou fardo; o sistema "
-                    "converte para unidade e mostra o custo médio antes e depois."))
+                    "Uma carga com 10 fardos de Coca-Cola e 6 garrafas avulsas de "
+                    "whisky. O sistema converte tudo para unidade e mostra o custo "
+                    "médio antes e depois."))
 
     h.append(sub("Chegou um produto ou um fornecedor que não está cadastrado?"))
     h.append(p("Não precisa sair da tela. Digite o nome do produto na busca: "
@@ -525,7 +538,7 @@ def montar():
                "própria carga."))
 
     h.append(caixa(
-        "Você digita em caixa, o sistema guarda em unidade",
+        "Você digita em caixa ou em unidade, o sistema guarda em unidade",
         "Isso é o que permite vender uma lata avulsa no balcão e a caixa "
         "fechada no atacado sem o estoque se perder. Na coluna <b>Vira</b> "
         "você vê a conversão acontecendo: 10 fardos de 6 viram 60 unidades."))
@@ -567,8 +580,8 @@ def montar():
             "escolha o casco.",
             "<b>Preços de venda</b> — varejo, atacado e a partir de quantas "
             "unidades vale o atacado. Se o produto vai para a geladeira, marque "
-            "<b>Vende gelado</b> e digite o preço gelado. A margem aparece "
-            "embaixo de cada preço.",
+            "<b>Vende gelado</b> e digite o preço gelado: o sistema já mostra "
+            "quanto sai a caixa gelada. A margem aparece embaixo de cada preço.",
             "<b>Estoque</b> — o mínimo, abaixo do qual o produto aparece "
             "para repor, e se você já tem esse produto no depósito.",
         ], COL),
@@ -689,13 +702,22 @@ def montar():
         [
             ["1ª", "O cliente está cadastrado como cliente de atacado",
              "Atacado, em qualquer quantidade"],
-            ["2ª", "A quantidade chegou no mínimo que você definiu para o produto",
-             "Atacado"],
-            ["3ª", "Venda no varejo e você tocou em <b>gelado</b> no item",
-             "Gelado"],
-            ["—", "Nenhuma das três", "Varejo"],
+            ["2ª", "A quantidade chegou no mínimo que você definiu para o produto "
+             "— uma caixa fechada, por exemplo", "Atacado"],
+            ["—", "Nenhuma das duas", "Varejo"],
         ],
         [12 * mm, CW - 12 * mm - 45 * mm, 45 * mm]))
+    h.append(p("Se você tocou em <b>gelado</b> no item, o preço ganha o gelado — "
+               "na lata avulsa e na caixa fechada:"))
+    h.append(tabela(
+        ["Venda gelada", "Como sai o preço", "Exemplo (lata 350 ml)"],
+        [
+            ["Varejo — avulsa", "O preço gelado do cadastro", "R$ 5,20 a lata"],
+            ["Atacado — caixa ou fardo", "O atacado mais o acréscimo do gelado "
+             "(gelado − varejo, por unidade)", "R$ 3,80 + R$ 0,70 = R$ 4,50 a lata, "
+             "R$ 54,00 a caixa"],
+        ],
+        [40 * mm, CW - 40 * mm - 52 * mm, 52 * mm]))
     h.append(p("Na tela de venda, a etiqueta ao lado do produto mostra qual "
                "preço entrou e por quê — por exemplo, <i>a partir de 24 un</i> "
                "ou <i>gelado</i>."))
@@ -715,9 +737,9 @@ def montar():
     h.append(caixa(
         "O preço gelado não sobe sozinho",
         "Ele é um preço fixo, que você digita. Então, quando aumentar o "
-        "varejo, lembre de aumentar o gelado junto. Se o gelado ficar igual ou "
-        "mais barato que o natural, o cadastro avisa na hora, e a lista de "
-        "produtos mostra um alerta ao lado dele.",
+        "varejo, lembre de aumentar o gelado junto — a caixa gelada vem dele. "
+        "Se o gelado ficar igual ou mais barato que o natural, o cadastro avisa "
+        "na hora, e a lista de produtos mostra um alerta ao lado dele.",
         tom="atencao"))
 
     h.append(caixa(
@@ -835,14 +857,15 @@ def montar():
                "mostra se vale a pena empurrar caixa fechada ou vender no balcão."))
 
     h.append(sub("A geladeira se paga?"))
-    h.append(p("O quadro <b>Gelado</b> mostra quantas unidades saíram geladas e "
-               "quanto o gelado rendeu <b>a mais</b> do que se tivessem saído "
-               "pelo preço natural. Digite quanto veio de luz da geladeira no "
+    h.append(p("O quadro <b>Gelado</b> mostra quantas unidades saíram geladas — "
+               "avulsas e em caixa ou fardo — e quanto o gelado rendeu <b>a "
+               "mais</b> do que se tivessem saído pelo preço natural. Digite quanto veio de luz da geladeira no "
                "mesmo período e o sistema responde se ela se paga. Esse valor "
                "da luz não é gravado — serve só para comparar."))
     h.append(imagem("19-gelado.png",
-                    "No período, o gelado rendeu R$ 358,80 a mais. Com R$ 250 de "
-                    "luz, a geladeira se paga e sobram R$ 108,80.",
+                    "No período, o gelado rendeu R$ 1.065,60 a mais, somando as "
+                    "latas avulsas e as caixas geladas. Com R$ 600 de luz, a "
+                    "geladeira se paga e sobram R$ 465,60.",
                     alt_max=60 * mm))
 
     h.append(sub("Curva ABC"))
@@ -978,6 +1001,13 @@ def montar():
          "certo. O estoque e o caixa voltam sozinhos. A venda errada não some: "
          "fica na lista marcada como cancelada, com o motivo — é isso que "
          "mantém o histórico confiável."),
+        ("Dá para vender uma caixa ou um fardo gelado?",
+         "Dá. Escolha <b>Caixa</b> no item (ou toque em <b>+ 1 cx</b> na busca) e "
+         "toque em <b>gelado</b>. Sai pelo atacado mais o acréscimo do gelado em "
+         "cada unidade (seção 6)."),
+        ("Chegaram garrafas avulsas, não uma caixa fechada. Como lanço?",
+         "Na entrada, toque em <b>+ un</b> na busca, ou troque o item para "
+         "<b>Unidade</b>. Aí a quantidade e o custo são por garrafa."),
         ("Cadastrei um produto e ele aparece como “aguarda 1ª entrada”. Fiz algo errado?",
          "Não. Quer dizer só que o produto ainda não recebeu mercadoria. "
          "Quando a carga chegar, lance em Entradas → Nova entrada e a "

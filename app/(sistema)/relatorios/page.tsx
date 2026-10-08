@@ -333,7 +333,7 @@ export default function Relatorios() {
         <TituloCartao
           extra={
             <span className="flex items-center gap-1.5 text-[11px] font-semibold text-marca">
-              <Snowflake size={13} /> só varejo
+              <Snowflake size={13} /> avulso e caixa
             </span>
           }
         >
@@ -351,7 +351,7 @@ export default function Relatorios() {
                 {numero(gelado.unidades)} un
               </p>
               <p className="mt-1.5 text-[12px] text-suave">
-                {porcento(gelado.participacao)} do que vendeu no varejo
+                {numero(gelado.avulsas)} avulsas · {numero(gelado.emCaixa)} em caixa ou fardo
               </p>
             </div>
             <div>

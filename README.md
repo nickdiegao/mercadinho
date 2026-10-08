@@ -41,12 +41,13 @@ Entre como **Maria Conceição (admin)** para ver tudo. O roteiro que mostra o
 sistema em cinco minutos:
 
 1. **Painel** — vendas do dia, lucro, valor do estoque e cascos na rua.
-2. **Nova venda** — busque `600ml`, adicione a cerveja em garrafa e clique em
-   `1 ENG = 24 un`. O preço vira **atacado sozinho** e aparece o aviso de que
-   saem 24 cascos junto.
+2. **Nova venda** — busque `600ml` e toque em **+ 1 eng** na cerveja em
+   garrafa. Sai um engradado de 24, o preço vira **atacado sozinho** e aparece o
+   aviso de que saem 24 cascos junto. Cada item troca entre **Unidade** e a
+   embalagem dele (caixa, fardo, engradado) a qualquer momento.
 3. **Gelado** — adicione uma lata avulsa e toque em **gelado**: o preço passa
-   para o gelado. Suba a quantidade até o atacado e o botão trava em
-   "atacado sai natural".
+   para o gelado. Troque para **Caixa c/ 12**: ela vira atacado e continua
+   gelada, pelo atacado mais o acréscimo do gelado.
 4. **Finalizar** — cai no recibo, com CNPJ, descrição, valores e o total por
    extenso. Dali sai para imprimir, salvar em PDF ou mandar no **WhatsApp**.
 5. **Cancelar venda** (admin, no recibo) — as unidades voltam ao estoque, o
@@ -92,13 +93,27 @@ caixa não fecha por centavos.
 | Custo médio | inteiro em **1/10000 de real** (4 casas) | `R$ 3,3125` → `33125` |
 | Quantidade | número em unidade base, até 3 casas | `12 latas` → `12` |
 
+### Unidade ou embalagem
+
+O estoque mora sempre em unidade (regra 1). Na venda e na entrada, cada
+produto se escolhe por **unidade** ou pela **embalagem dele** — caixa, fardo,
+engradado —, com o estoque mostrado do jeito que se conta no depósito
+(`74 cx + 7 un`). A embalagem só fica disponível na venda quando o saldo fecha
+pelo menos uma. O item guarda como foi vendido (`venda_item.embalagem`), para o
+recibo sair com `2 CX c/ 12` e o valor da caixa, em vez de `24 UN`. Na entrada,
+a mercadoria avulsa (6 garrafas) entra com quantidade e custo por unidade.
+As regras ficam em [`lib/embalagem.ts`](lib/embalagem.ts).
+
 ### Preço gelado
 
 Terceiro preço fixo do produto, ao lado do varejo e do atacado — cobre a energia
-de manter a bebida na geladeira. Vale **só no varejo**: quando a venda cai no
-atacado, pelo cliente ou pela quantidade, o item sai natural. Quanto o gelado
-rendeu a mais fica congelado no item (`venda_item.adicionalGelado`), e é isso
-que o relatório compara com a conta de luz.
+de manter a bebida na geladeira. Na lata avulsa vale o preço gelado do cadastro.
+Na **caixa ou fardo gelado** (venda no atacado), vale o atacado mais o mesmo
+acréscimo por unidade (gelado − varejo): a geladeira gasta o mesmo por lata.
+Com varejo 4,50, atacado 3,80 e gelado 5,20, a caixa gelada sai a 4,50 por
+unidade. Quanto o gelado rendeu a mais fica congelado no item
+(`venda_item.adicionalGelado`, sobre o natural do mesmo canal), e é isso que o
+relatório compara com a conta de luz.
 
 Por ser um preço fixo, ele não acompanha o varejo sozinho: se o varejo subir e
 o gelado não, o cadastro avisa e a lista de produtos marca o item.

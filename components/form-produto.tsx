@@ -165,6 +165,9 @@ function Corpo({
   // preco fixo por decisao do cliente: o risco e o gelado ficar para tras
   // quando o varejo sobe. O aviso nao bloqueia, so chama atencao.
   const geladoAbaixo = p.vendeGelado && pg > 0 && pv > 0 && pg <= pv;
+  // caixa gelada: atacado + o mesmo acrescimo por unidade (atacado em branco = varejo)
+  const atacadoEfetivo = pa > 0 ? pa : pv;
+  const caixaGelada = p.vendeGelado && pg > pv && pv > 0 ? atacadoEfetivo + (pg - pv) : 0;
 
   function salvar() {
     setTentou(true);
@@ -358,7 +361,7 @@ function Corpo({
                 rotulo="Preço gelado — por unidade (R$)"
                 dica={
                   margemTexto(pg) ??
-                  "Cobre o custo de energia da geladeira. Vale só no varejo — atacado sai natural."
+                  "Cobre o custo de energia da geladeira. Na caixa fechada, o atacado ganha o mesmo acréscimo por unidade."
                 }
               >
                 <Entrada
@@ -370,6 +373,13 @@ function Corpo({
                 />
               </Campo>
               {tentou && erros.gelado && <Erro>{erros.gelado}</Erro>}
+              {caixaGelada > 0 && (
+                <p className="mt-2 text-[12px] leading-snug text-marca">
+                  Caixa ou fardo gelado: {moeda(caixaGelada)}/un — o atacado de{" "}
+                  {moeda(atacadoEfetivo)} mais {moeda(pg - pv)} do gelado
+                  {fator > 1 ? `, ${moeda(caixaGelada * fator)} a ${p.unidadeCompra} com ${fator}` : ""}.
+                </p>
+              )}
               {geladoAbaixo && (
                 <p className="mt-2 flex items-start gap-1.5 rounded-md bg-alerta-claro px-2.5 py-2 text-[12px] leading-snug text-alerta">
                   <AlertTriangle size={13} className="mt-0.5 shrink-0" />

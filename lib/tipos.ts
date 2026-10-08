@@ -104,9 +104,10 @@ export interface Produto {
   precoVarejo: number; // centavos
   precoAtacado: number; // centavos
   /**
-   * Preco do produto gelado, em centavos. Vale so no varejo: venda no atacado
-   * sai sempre natural. Preco fixo por decisao do cliente — o formulario avisa
-   * quando fica igual ou abaixo do varejo natural.
+   * Preco do produto gelado no varejo, em centavos. Preco fixo por decisao do
+   * cliente — o formulario avisa quando fica igual ou abaixo do varejo natural.
+   * Na caixa gelada (atacado), soma-se ao atacado a diferenca gelado - varejo:
+   * ver `acrescimoGelado` em regras.ts.
    */
   precoGelado?: number;
   /** Carvao, gelo e refresco em po nao gelam. Ausente = nao vende gelado. */
@@ -151,7 +152,13 @@ export interface VendaItem {
   /** Custo medio congelado no instante da venda. Nunca recalcular. */
   custoUnit: number; // 1/10000 de real
   tipoPrecoAplicado: TipoPreco;
-  /** Saiu gelado. So acontece no varejo. */
+  /**
+   * Vendido em embalagem fechada (2 caixas de 12). `qtd` continua em unidade;
+   * isto so diz como a quantidade foi escolhida, para o recibo mostrar
+   * "2 CX" em vez de "24 UN". Ausente = vendido por unidade.
+   */
+  embalagem?: { unidade: UnidadeCompra; fator: number };
+  /** Saiu gelado — lata avulsa ou caixa fechada. */
   gelado?: boolean;
   /**
    * Quanto o gelado cobrou a mais por unidade, congelado no instante da venda

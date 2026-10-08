@@ -66,49 +66,63 @@ export function podeGelar(produto: Produto): boolean {
 }
 
 /**
+ * Quanto o gelado cobra a mais por unidade: a diferenca entre o preco gelado
+ * e o varejo. E o mesmo acrescimo na lata avulsa e na caixa fechada — a
+ * geladeira gasta o mesmo para gelar cada unidade. Nunca negativo: se o
+ * gelado ficou abaixo do varejo (o cadastro avisa), a caixa sai pelo atacado.
+ */
+export function acrescimoGelado(produto: Produto): number {
+  if (!podeGelar(produto)) return 0;
+  return Math.max(0, produto.precoGelado! - produto.precoVarejo);
+}
+
+/**
  * Decide o preco do item, na ordem do blueprint:
  *   1. cliente marcado como ATACADO          -> atacado
  *   2. quantidade atinge o minimo do produto -> atacado
  *   3. caso contrario                        -> varejo
  *
- * Gelado so existe no varejo, por decisao do cliente: venda no atacado sai
- * sempre natural, mesmo que o item tenha sido marcado como gelado.
+ * Gelado vale nos dois, por decisao do cliente:
+ *   - varejo gelado: o preco gelado fixo do cadastro
+ *   - atacado gelado (caixa ou fardo): atacado + o acrescimo do gelado
+ * `natural` e o preco que sairia sem gelar; `preco - natural` e o que o
+ * gelado rendeu a mais, e vai congelado no item para o relatorio.
  */
 export function precoAplicavel(
   produto: Produto,
   qtd: number,
   cliente?: Cliente | null,
   querGelado = false,
-): { tipo: TipoPreco; preco: number; motivo: string; gelado: boolean } {
-  if (cliente?.tipoPreco === "ATACADO") {
+): {
+  tipo: TipoPreco;
+  preco: number;
+  natural: number;
+  motivo: string;
+  gelado: boolean;
+} {
+  const gela = querGelado && podeGelar(produto);
+  const atacado =
+    cliente?.tipoPreco === "ATACADO"
+      ? "cliente com tabela de atacado"
+      : qtd >= produto.qtdMinimaAtacado
+        ? `a partir de ${produto.qtdMinimaAtacado} un`
+        : null;
+
+  if (atacado) {
     return {
       tipo: "ATACADO",
-      preco: produto.precoAtacado,
-      motivo: "cliente com tabela de atacado",
-      gelado: false,
-    };
-  }
-  if (qtd >= produto.qtdMinimaAtacado) {
-    return {
-      tipo: "ATACADO",
-      preco: produto.precoAtacado,
-      motivo: `a partir de ${produto.qtdMinimaAtacado} un`,
-      gelado: false,
-    };
-  }
-  if (querGelado && podeGelar(produto)) {
-    return {
-      tipo: "VAREJO",
-      preco: produto.precoGelado!,
-      motivo: "gelado",
-      gelado: true,
+      preco: produto.precoAtacado + (gela ? acrescimoGelado(produto) : 0),
+      natural: produto.precoAtacado,
+      motivo: gela ? `${atacado} · gelado` : atacado,
+      gelado: gela,
     };
   }
   return {
     tipo: "VAREJO",
-    preco: produto.precoVarejo,
-    motivo: "venda no varejo",
-    gelado: false,
+    preco: gela ? produto.precoGelado! : produto.precoVarejo,
+    natural: produto.precoVarejo,
+    motivo: gela ? "gelado" : "venda no varejo",
+    gelado: gela,
   };
 }
 

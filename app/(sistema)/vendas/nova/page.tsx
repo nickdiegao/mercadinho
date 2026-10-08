@@ -5,6 +5,13 @@ import { useRouter } from "next/navigation";
 import { Check, Minus, Plus, Search, Snowflake, Trash2, UserPlus } from "lucide-react";
 import { useEstado, usePerfil } from "@/lib/store";
 import { podeGelar, precoAplicavel } from "@/lib/regras";
+import {
+  fechaEmbalagem,
+  nomeEmbalagem,
+  rotuloEmbalagem,
+  saldoContado,
+  temEmbalagem,
+} from "@/lib/embalagem";
 import { moeda, numero } from "@/lib/formato";
 import type { FormaPagamento, Produto } from "@/lib/tipos";
 import { FormCliente } from "@/components/form-cliente";
@@ -22,8 +29,11 @@ import {
 
 interface Linha {
   produtoId: string;
+  /** Sempre em unidade. Em caixa, e multiplo do fator. */
   qtd: number;
-  /** Operador marcou gelado. So vale se a linha sair no varejo. */
+  /** A operadora escolheu vender em caixa/fardo fechado. */
+  emEmbalagem: boolean;
+  /** Operador marcou gelado. Vale no varejo e na caixa fechada. */
   gelado: boolean;
 }
 
@@ -74,12 +84,19 @@ export default function NovaVenda() {
 
   const itens = linhas.map((l) => {
     const p = estado.produtos.find((x) => x.id === l.produtoId)!;
-    const { tipo, preco, motivo, gelado } = precoAplicavel(p, l.qtd, cliente, l.gelado);
+    const { tipo, preco, natural, motivo, gelado } = precoAplicavel(p, l.qtd, cliente, l.gelado);
+    const fator = l.emEmbalagem ? p.fatorConversao : 1;
     return {
       ...l,
       produto: p,
+      fator,
+      /** o numero que aparece no campo: caixas ou unidades */
+      qtdMostrada: l.qtd / fator,
       tipoPreco: tipo,
       precoUnit: preco,
+      precoNatural: natural,
+      // preco que o botao mostra antes de marcar: o gelado desta linha agora
+      precoSeGelar: podeGelar(p) ? precoAplicavel(p, l.qtd, cliente, true).preco : 0,
       motivo,
       saiGelado: gelado,
       total: Math.round(l.qtd * preco),
@@ -97,16 +114,20 @@ export default function NovaVenda() {
     0,
   );
 
-  function adicionar(p: Produto) {
+  function adicionar(p: Produto, emEmbalagem = false) {
     // produto sem preco nao vende: a administradora ainda nao definiu
     if (p.precoVarejo <= 0) return;
+    const passo = emEmbalagem ? p.fatorConversao : 1;
     setLinhas((ls) => {
       const existe = ls.find((l) => l.produtoId === p.id);
       if (existe)
-        return ls.map((l) =>
-          l.produtoId === p.id ? { ...l, qtd: l.qtd + 1 } : l,
-        );
-      return [...ls, { produtoId: p.id, qtd: 1, gelado: false }];
+        return ls.map((l) => {
+          if (l.produtoId !== p.id) return l;
+          const qtd = l.qtd + passo;
+          // uma unidade avulsa somada a caixas desfaz a caixa fechada
+          return { ...l, qtd, emEmbalagem: l.emEmbalagem && qtd % p.fatorConversao === 0 };
+        });
+      return [...ls, { produtoId: p.id, qtd: passo, emEmbalagem, gelado: false }];
     });
     setBusca("");
     buscaRef.current?.focus();
@@ -115,6 +136,18 @@ export default function NovaVenda() {
   function alternarGelado(produtoId: string) {
     setLinhas((ls) =>
       ls.map((l) => (l.produtoId === produtoId ? { ...l, gelado: !l.gelado } : l)),
+    );
+  }
+
+  /** Troca entre unidade e caixa. Indo para caixa, arredonda para caixa inteira. */
+  function trocarFormato(produtoId: string, emEmbalagem: boolean) {
+    setLinhas((ls) =>
+      ls.map((l) => {
+        if (l.produtoId !== produtoId) return l;
+        if (!emEmbalagem) return { ...l, emEmbalagem: false };
+        const fator = estado.produtos.find((x) => x.id === produtoId)!.fatorConversao;
+        return { ...l, emEmbalagem: true, qtd: Math.max(1, Math.round(l.qtd / fator)) * fator };
+      }),
     );
   }
 
@@ -137,9 +170,13 @@ export default function NovaVenda() {
         qtd: i.qtd,
         precoUnit: i.precoUnit,
         tipoPrecoAplicado: i.tipoPreco,
+        embalagem: i.emEmbalagem
+          ? { unidade: i.produto.unidadeCompra, fator: i.produto.fatorConversao }
+          : undefined,
         gelado: i.saiGelado,
-        // quanto o gelado cobrou a mais, congelado para o relatorio
-        adicionalGelado: i.saiGelado ? i.precoUnit - i.produto.precoVarejo : undefined,
+        // quanto o gelado cobrou a mais, congelado para o relatorio — sobre o
+        // natural do proprio canal: varejo na lata avulsa, atacado na caixa
+        adicionalGelado: i.saiGelado ? i.precoUnit - i.precoNatural : undefined,
       })),
       desconto,
       formaPagamento: forma,
@@ -182,49 +219,81 @@ export default function NovaVenda() {
 
             {resultados.length > 0 && (
               <ul className="mt-2 overflow-hidden rounded-md border border-borda">
-                {resultados.map((p, i) => (
-                  <li key={p.id}>
-                    <button
-                      onClick={() => adicionar(p)}
-                      disabled={p.precoVarejo <= 0}
-                      className={`transicao flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-marca-clara disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent ${
+                {resultados.map((p, i) => {
+                  const semPreco = p.precoVarejo <= 0;
+                  const sigla = p.unidadeCompra.toLowerCase();
+                  // preco de uma embalagem fechada: o que a regra de preco daria
+                  const precoEmbalagem = temEmbalagem(p)
+                    ? precoAplicavel(p, p.fatorConversao, cliente).preco * p.fatorConversao
+                    : 0;
+                  return (
+                    <li
+                      key={p.id}
+                      className={`flex items-center gap-2 border-b border-borda px-3 py-2 last:border-b-0 ${
                         i === 0 ? "bg-superficie2/60" : ""
                       }`}
                     >
-                      <span className="min-w-0">
-                        <span className="block truncate text-[13.5px] font-medium text-tinta">
+                      <button
+                        onClick={() => adicionar(p)}
+                        disabled={semPreco}
+                        className="transicao min-w-0 flex-1 rounded py-0.5 text-left hover:text-marca disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <span className="line-clamp-2 block text-[13.5px] font-medium leading-snug text-tinta">
                           {p.nome}
                         </span>
-                        <span className="tabular text-[11.5px] text-suave">
-                          {p.sku} · saldo {numero(p.saldoAtual)} un · caixa com{" "}
-                          {p.fatorConversao}
-                        </span>
-                      </span>
-                      {p.precoVarejo <= 0 ? (
-                        <span className="shrink-0 text-right text-[11.5px] font-semibold text-alerta">
-                          sem preço
-                          <span className="block font-normal text-suave">
-                            a admin define
-                          </span>
-                        </span>
-                      ) : (
-                        <span className="shrink-0 text-right">
-                          <span className="tabular block text-[13px] font-semibold">
-                            {moeda(p.precoVarejo)}
-                          </span>
-                          <span className="tabular block text-[11px] text-marca">
-                            {moeda(p.precoAtacado)} atacado
-                          </span>
+                        <span className="tabular block text-[11.5px] text-suave">
+                          estoque {saldoContado(p)}
+                          {temEmbalagem(p) &&
+                            ` · ${nomeEmbalagem(p.unidadeCompra)} com ${p.fatorConversao}`}
                           {podeGelar(p) && (
-                            <span className="tabular flex items-center justify-end gap-0.5 text-[11px] text-suave">
-                              <Snowflake size={10} /> {moeda(p.precoGelado!)}
+                            <span className="ml-1 inline-flex items-center gap-0.5 text-marca">
+                              · <Snowflake size={10} /> {moeda(p.precoGelado!)}
                             </span>
                           )}
                         </span>
+                      </button>
+                      {semPreco ? (
+                        <span className="shrink-0 text-right text-[11.5px] font-semibold text-alerta">
+                          sem preço
+                          <span className="block font-normal text-suave">a admin define</span>
+                        </span>
+                      ) : (
+                        <span className="flex shrink-0 gap-1.5">
+                          <button
+                            onClick={() => adicionar(p)}
+                            aria-label={`Adicionar 1 unidade de ${p.nome}`}
+                            className="transicao rounded-md border border-borda2 bg-superficie px-2 py-1 text-right hover:border-marca hover:bg-marca-clara"
+                          >
+                            <span className="block text-[11px] font-semibold text-tinta2">+ 1 un</span>
+                            <span className="tabular block text-[12.5px] font-semibold text-tinta">
+                              {moeda(p.precoVarejo)}
+                            </span>
+                          </button>
+                          {temEmbalagem(p) && (
+                            <button
+                              onClick={() => adicionar(p, true)}
+                              disabled={!fechaEmbalagem(p)}
+                              aria-label={`Adicionar 1 ${nomeEmbalagem(p.unidadeCompra)} de ${p.nome}`}
+                              title={
+                                fechaEmbalagem(p)
+                                  ? `${rotuloEmbalagem(p.unidadeCompra)} com ${p.fatorConversao} un`
+                                  : `Só tem ${p.saldoAtual} un: não fecha ${nomeEmbalagem(p.unidadeCompra)}`
+                              }
+                              className="transicao rounded-md border border-marca/40 bg-marca-clara/60 px-2 py-1 text-right hover:border-marca hover:bg-marca-clara disabled:cursor-not-allowed disabled:border-borda disabled:bg-superficie2 disabled:opacity-60"
+                            >
+                              <span className="block text-[11px] font-semibold text-marca">
+                                + 1 {sigla}
+                              </span>
+                              <span className="tabular block text-[12.5px] font-semibold text-tinta">
+                                {moeda(precoEmbalagem)}
+                              </span>
+                            </button>
+                          )}
+                        </span>
                       )}
-                    </button>
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </Cartao>
@@ -244,7 +313,7 @@ export default function NovaVenda() {
                     className="border-b border-borda px-4 py-3 last:border-b-0"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
+                      <div className="min-w-0 flex-1 basis-56">
                         <p className="truncate text-[14px] font-medium text-tinta">
                           {i.produto.nome}
                         </p>
@@ -258,29 +327,33 @@ export default function NovaVenda() {
                             </Etiqueta>
                           )}
                           <span>
-                            {moeda(i.precoUnit)} / un — {i.motivo}
+                            {i.emEmbalagem
+                              ? `${moeda(i.precoUnit * i.fator)} a ${i.produto.unidadeCompra.toLowerCase()} (${moeda(i.precoUnit)}/un)`
+                              : `${moeda(i.precoUnit)} / un`}{" "}
+                            — {i.motivo}
                           </span>
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="ml-auto flex items-center gap-2">
                         <div className="flex items-center rounded-md border border-borda">
                           <button
-                            onClick={() => mudarQtd(i.produtoId, i.qtd - 1)}
+                            onClick={() => mudarQtd(i.produtoId, i.qtd - i.fator)}
                             className="transicao px-2 py-1.5 text-suave hover:text-marca"
                             aria-label="Diminuir"
                           >
                             <Minus size={14} />
                           </button>
                           <input
-                            value={i.qtd}
+                            value={i.qtdMostrada}
                             onChange={(e) =>
-                              mudarQtd(i.produtoId, Number(e.target.value) || 0)
+                              mudarQtd(i.produtoId, (Number(e.target.value) || 0) * i.fator)
                             }
+                            aria-label={`Quantidade em ${i.emEmbalagem ? nomeEmbalagem(i.produto.unidadeCompra, 2) : "unidades"}`}
                             className="tabular w-14 border-x border-borda py-1.5 text-center text-sm focus:outline-none"
                           />
                           <button
-                            onClick={() => mudarQtd(i.produtoId, i.qtd + 1)}
+                            onClick={() => mudarQtd(i.produtoId, i.qtd + i.fator)}
                             className="transicao px-2 py-1.5 text-suave hover:text-marca"
                             aria-label="Aumentar"
                           >
@@ -303,38 +376,61 @@ export default function NovaVenda() {
                     </div>
 
                     <div className="mt-1.5 flex flex-wrap gap-3 text-[11.5px]">
-                      <button
-                        onClick={() =>
-                          mudarQtd(i.produtoId, i.produto.fatorConversao)
-                        }
-                        className="font-semibold text-marca hover:underline"
-                      >
-                        1 {i.produto.unidadeCompra} = {i.produto.fatorConversao} un
-                      </button>
+                      {temEmbalagem(i.produto) && (
+                        <span
+                          role="group"
+                          aria-label="Vender por"
+                          className="inline-flex rounded-full border border-borda2 p-0.5"
+                        >
+                          {[false, true].map((emb) => (
+                            <button
+                              key={String(emb)}
+                              onClick={() => trocarFormato(i.produtoId, emb)}
+                              aria-pressed={i.emEmbalagem === emb}
+                              disabled={emb && !i.emEmbalagem && !fechaEmbalagem(i.produto)}
+                              title={
+                                emb && !fechaEmbalagem(i.produto)
+                                  ? `Só tem ${i.produto.saldoAtual} un: não fecha ${nomeEmbalagem(i.produto.unidadeCompra)}`
+                                  : undefined
+                              }
+                              className={`transicao whitespace-nowrap rounded-full px-2 py-0.5 font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${
+                                i.emEmbalagem === emb
+                                  ? "bg-marca text-white"
+                                  : "text-tinta2 hover:text-marca"
+                              }`}
+                            >
+                              {emb
+                                ? `${rotuloEmbalagem(i.produto.unidadeCompra)} c/ ${i.produto.fatorConversao}`
+                                : "Unidade"}
+                            </button>
+                          ))}
+                        </span>
+                      )}
                       {podeGelar(i.produto) && (
                         <button
                           onClick={() => alternarGelado(i.produtoId)}
-                          disabled={i.tipoPreco === "ATACADO"}
                           aria-pressed={i.saiGelado}
                           title={
                             i.tipoPreco === "ATACADO"
-                              ? "Venda no atacado sai sempre natural"
+                              ? "Caixa gelada: atacado mais o acréscimo do gelado por unidade"
                               : undefined
                           }
-                          className={`transicao inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${
+                          className={`transicao inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-semibold ${
                             i.saiGelado
                               ? "border-marca bg-marca text-white"
                               : "border-borda2 text-tinta2 hover:border-marca hover:text-marca"
                           }`}
                         >
                           <Snowflake size={11} />
-                          {i.tipoPreco === "ATACADO"
-                            ? "atacado sai natural"
-                            : i.saiGelado
-                              ? "gelado"
-                              : `gelado ${moeda(i.produto.precoGelado!)}`}
+                          {i.saiGelado ? "gelado" : `gelado ${moeda(i.precoSeGelar)}`}
                         </button>
                       )}
+                      {i.emEmbalagem && (
+                        <span className="tabular text-tinta2">= {numero(i.qtd)} un</span>
+                      )}
+                      <span className="tabular text-suave">
+                        estoque {saldoContado(i.produto)}
+                      </span>
                       {i.qtd > i.produto.saldoAtual && (
                         <span className="font-semibold text-alerta">
                           saldo insuficiente: tem {numero(i.produto.saldoAtual)} un

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AlertTriangle, ExternalLink, Pencil, Plus, Snowflake } from "lucide-react";
 import { useEstado, usePerfil } from "@/lib/store";
 import {
+  acrescimoGelado,
   aguardandoEntrada,
   margem,
   markup,
@@ -223,6 +224,12 @@ export default function Produtos() {
             </>
           )}
           <Info rotulo="Atacado a partir de" valor={`${numero(p.qtdMinimaAtacado)} un`} />
+          {podeGelar(p) && (
+            <Info
+              rotulo="Caixa gelada"
+              valor={`${moeda(p.precoAtacado + acrescimoGelado(p))} / un`}
+            />
+          )}
           <Info rotulo="Estoque mínimo" valor={`${numero(p.estoqueMinimo)} un`} />
           <Info rotulo="NCM" valor={p.ncm || "—"} />
           <Info rotulo="Código de barras" valor={p.codigoBarras || "—"} />

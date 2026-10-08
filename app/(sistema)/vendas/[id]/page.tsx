@@ -6,6 +6,7 @@ import { ArrowLeft, Ban, MessageCircle, Printer, Share2, Snowflake } from "lucid
 import { useEstado, usePerfil } from "@/lib/store";
 import { resumoCaixa } from "@/lib/consultas";
 import { moeda, numero, dataHora, porExtenso } from "@/lib/formato";
+import { comoVendido } from "@/lib/embalagem";
 import { apenasDigitos } from "@/lib/documentos";
 import type { Cliente, Empresa, Venda } from "@/lib/tipos";
 import { Aviso, Botao, Campo } from "@/components/ui";
@@ -233,7 +234,9 @@ export default function Recibo({ params }: { params: Promise<{ id: string }> }) 
               </tr>
             </thead>
             <tbody>
-              {venda.itens.map((i) => (
+              {venda.itens.map((i) => {
+                const q = comoVendido(i);
+                return (
                 <tr key={i.id} className="border-b border-borda">
                   <td className="py-2 pr-3 text-tinta">
                     {i.descricao}
@@ -243,14 +246,20 @@ export default function Recibo({ params }: { params: Promise<{ id: string }> }) 
                       </span>
                     )}
                   </td>
-                  <td className="tabular py-2 text-right">{numero(i.qtd)}</td>
-                  <td className="py-2 text-right text-suave">UN</td>
-                  <td className="tabular py-2 text-right">{moeda(i.precoUnit)}</td>
+                  <td className="tabular py-2 text-right">{numero(q.qtd)}</td>
+                  <td className="py-2 text-right text-suave">
+                    {q.unidade}
+                    {q.fator > 1 && (
+                      <span className="block text-[10.5px] leading-tight">c/ {q.fator}</span>
+                    )}
+                  </td>
+                  <td className="tabular py-2 text-right">{moeda(q.precoUnit)}</td>
                   <td className="tabular py-2 text-right font-semibold text-tinta">
                     {moeda(i.total)}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -359,10 +368,14 @@ function textoRecibo(
     "",
     `Cliente: ${cliente?.nomeRazao ?? "Consumidor final"}`,
     "",
-    ...v.itens.map(
-      (i) =>
-        `${numero(i.qtd)}× ${i.descricao}${i.gelado ? " (gelado)" : ""} — ${moeda(i.total)}`,
-    ),
+    ...v.itens.map((i) => {
+      const q = comoVendido(i);
+      const quanto =
+        q.fator > 1
+          ? `${numero(q.qtd)} ${q.unidade.toLowerCase()} c/${q.fator}`
+          : `${numero(i.qtd)}×`;
+      return `${quanto} ${i.descricao}${i.gelado ? " (gelado)" : ""} — ${moeda(i.total)}`;
+    }),
     "",
     ...(v.desconto > 0 ? [`Desconto: − ${moeda(v.desconto)}`] : []),
     `*Total: ${moeda(v.total)}*`,
