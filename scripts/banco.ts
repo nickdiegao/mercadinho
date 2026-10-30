@@ -10,26 +10,35 @@
  */
 
 import { loadEnvConfig } from "@next/env";
-import { migrate } from "drizzle-orm/postgres-js/migrator";
+import { hash } from "bcryptjs";
+import { rmSync } from "node:fs";
 import { estadoVazio, gerarEstado } from "../lib/seed";
 
 loadEnvConfig(process.cwd());
 
 async function main() {
   const comando = process.argv[2];
-  // o modulo do banco le DATABASE_URL ao conectar: importa depois do .env.local
-  const { banco } = await import("../lib/servidor/db");
+  // o modulo do banco le BANCO_ARQUIVO ao conectar: importa depois do .env.local
+  const { banco, migrar } = await import("../lib/servidor/db");
   const { semear } = await import("../lib/servidor/estado");
-  const db = banco();
 
   if (comando === "migrar") {
-    await migrate(db, { migrationsFolder: "drizzle" });
+    migrar();
     console.log("Tabelas em dia.");
   } else if (comando === "semear" || comando === "zerar") {
     const senha = process.env.SENHA_INICIAL;
     if (!senha) throw new Error("Defina SENHA_INICIAL no .env.local (veja o .env.example).");
+    if (senha.length < 8) throw new Error("SENHA_INICIAL precisa de pelo menos 8 caracteres.");
+    const arquivo = process.env.BANCO_ARQUIVO;
+    if (!arquivo) throw new Error("Defina BANCO_ARQUIVO no .env.local (veja o .env.example).");
+
+    // recomeca do arquivo: os gatilhos de so-insercao nao deixam limpar por DELETE
+    for (const fim of ["", "-wal", "-shm"]) rmSync(arquivo + fim, { force: true });
+    migrar();
+
     const estado = comando === "semear" ? gerarEstado() : estadoVazio();
-    await db.transaction((tx) => semear(tx, estado, senha));
+    const senhaHash = await hash(senha, 12);
+    banco().transaction((tx) => semear(tx, estado, senhaHash));
     console.log(
       comando === "semear"
         ? `Banco com a demonstração: ${estado.produtos.length} produtos, ${estado.vendas.length} vendas, ${estado.movimentos.length} movimentos.`

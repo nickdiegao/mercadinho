@@ -15,7 +15,6 @@ import { getServerSession } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import type { Perfil } from "../tipos";
 import { banco } from "./db";
-import { iso } from "./estado";
 import * as t from "./schema";
 
 const TENTATIVAS = 5;
@@ -30,8 +29,8 @@ export const ERRO_LOGIN = {
 let contador = 0;
 const idLog = () => `lg_${Date.now().toString(36)}${(contador++).toString(36)}`;
 
-async function auditar(usuarioId: string | null, acao: "LOGIN" | "LOGIN_FALHA", detalhe: string) {
-  await banco()
+function auditar(usuarioId: string | null, acao: "LOGIN" | "LOGIN_FALHA", detalhe: string) {
+  banco()
     .insert(t.logAuditoria)
     .values({
       id: idLog(),
@@ -41,49 +40,53 @@ async function auditar(usuarioId: string | null, acao: "LOGIN" | "LOGIN_FALHA", 
       entidade: "usuario",
       entidadeId: usuarioId ?? "",
       detalhe,
-    });
+    })
+    .run();
 }
 
 async function autenticar(emailBruto: string, senha: string) {
   const email = emailBruto.trim().toLowerCase();
   if (!email || !senha) return null;
 
-  const [u] = await banco()
+  const u = banco()
     .select()
     .from(t.usuarios)
     .where(sql`lower(${t.usuarios.email}) = ${email}`)
-    .limit(1);
+    .limit(1)
+    .get();
 
   if (!u || !u.ativo) {
-    await auditar(u?.id ?? null, "LOGIN_FALHA", u ? `${email}: usuário desativado` : `${email}: e-mail não cadastrado`);
+    auditar(u?.id ?? null, "LOGIN_FALHA", u ? `${email}: usuário desativado` : `${email}: e-mail não cadastrado`);
     return null;
   }
 
-  if (u.bloqueadoAte && new Date(iso(u.bloqueadoAte)) > new Date()) {
-    await auditar(u.id, "LOGIN_FALHA", `${email}: tentativa com a conta bloqueada`);
+  if (u.bloqueadoAte && new Date(u.bloqueadoAte) > new Date()) {
+    auditar(u.id, "LOGIN_FALHA", `${email}: tentativa com a conta bloqueada`);
     throw new Error(ERRO_LOGIN.bloqueado);
   }
 
   if (!(await compare(senha, u.senhaHash))) {
     const tentativas = u.tentativasFalhas + 1;
     const bloqueia = tentativas >= TENTATIVAS;
-    await banco()
+    banco()
       .update(t.usuarios)
       .set({
         tentativasFalhas: bloqueia ? 0 : tentativas,
         bloqueadoAte: bloqueia ? new Date(Date.now() + BLOQUEIO_MS).toISOString() : null,
       })
-      .where(eq(t.usuarios.id, u.id));
-    await auditar(u.id, "LOGIN_FALHA", bloqueia ? `${email}: senha errada, conta bloqueada por 15 min` : `${email}: senha errada (${tentativas}/${TENTATIVAS})`);
+      .where(eq(t.usuarios.id, u.id))
+      .run();
+    auditar(u.id, "LOGIN_FALHA", bloqueia ? `${email}: senha errada, conta bloqueada por 15 min` : `${email}: senha errada (${tentativas}/${TENTATIVAS})`);
     if (bloqueia) throw new Error(ERRO_LOGIN.bloqueado);
     return null;
   }
 
-  await banco()
+  banco()
     .update(t.usuarios)
     .set({ tentativasFalhas: 0, bloqueadoAte: null })
-    .where(eq(t.usuarios.id, u.id));
-  await auditar(u.id, "LOGIN", email);
+    .where(eq(t.usuarios.id, u.id))
+    .run();
+  auditar(u.id, "LOGIN", email);
   return { id: u.id, name: u.nome, email: u.email, perfil: u.perfil };
 }
 
@@ -123,11 +126,12 @@ export interface SessaoDoSistema {
 export async function sessaoAtual(): Promise<SessaoDoSistema | null> {
   const s = (await getServerSession(opcoesAuth)) as { uid?: string } | null;
   if (!s?.uid) return null;
-  const [u] = await banco()
+  const u = banco()
     .select({ id: t.usuarios.id, perfil: t.usuarios.perfil, ativo: t.usuarios.ativo })
     .from(t.usuarios)
     .where(eq(t.usuarios.id, s.uid))
-    .limit(1);
+    .limit(1)
+    .get();
   if (!u?.ativo) return null;
   return { usuarioId: u.id, perfil: u.perfil };
 }

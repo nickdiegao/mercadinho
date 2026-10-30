@@ -1,96 +1,90 @@
 {
-  "id": "7bdb0cfb-c514-400d-a4c9-cc5b7837fcad",
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "56ffb845-7a10-4157-97f3-29c4878880bd",
   "prevId": "00000000-0000-0000-0000-000000000000",
-  "version": "7",
-  "dialect": "postgresql",
   "tables": {
-    "public.caixa_movimentos": {
+    "caixa_movimentos": {
       "name": "caixa_movimentos",
-      "schema": "",
       "columns": {
+        "ordem": {
+          "name": "ordem",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
         "id": {
           "name": "id",
           "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "ordem": {
-          "name": "ordem",
-          "type": "bigint",
           "primaryKey": false,
           "notNull": true,
-          "identity": {
-            "type": "always",
-            "name": "caixa_movimentos_ordem_seq",
-            "schema": "public",
-            "increment": "1",
-            "startWith": "1",
-            "minValue": "1",
-            "maxValue": "9223372036854775807",
-            "cache": "1",
-            "cycle": false
-          }
+          "autoincrement": false
         },
         "caixa_sessao_id": {
           "name": "caixa_sessao_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "data": {
           "name": "data",
-          "type": "timestamp with time zone",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "tipo": {
           "name": "tipo",
-          "type": "tipo_caixa_mov",
-          "typeSchema": "public",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "forma_pagamento": {
           "name": "forma_pagamento",
-          "type": "forma_pagamento",
-          "typeSchema": "public",
+          "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "valor": {
           "name": "valor",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "venda_id": {
           "name": "venda_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "descricao": {
           "name": "descricao",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         }
       },
       "indexes": {
+        "caixa_movimentos_id_unique": {
+          "name": "caixa_movimentos_id_unique",
+          "columns": [
+            "id"
+          ],
+          "isUnique": true
+        },
         "caixa_movimentos_sessao": {
           "name": "caixa_movimentos_sessao",
           "columns": [
-            {
-              "expression": "caixa_sessao_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
+            "caixa_sessao_id"
           ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -123,74 +117,78 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
+      "checkConstraints": {
+        "caixa_movimentos_tipo_valido": {
+          "name": "caixa_movimentos_tipo_valido",
+          "value": "\"caixa_movimentos\".\"tipo\" in ('VENDA', 'SANGRIA', 'SUPRIMENTO', 'DESPESA', 'RECEBIMENTO', 'ESTORNO')"
+        },
+        "caixa_movimentos_forma_valida": {
+          "name": "caixa_movimentos_forma_valida",
+          "value": "\"caixa_movimentos\".\"forma_pagamento\" in ('DINHEIRO', 'PIX', 'DEBITO', 'CREDITO', 'FIADO')"
+        }
+      }
     },
-    "public.caixa_sessoes": {
+    "caixa_sessoes": {
       "name": "caixa_sessoes",
-      "schema": "",
       "columns": {
         "id": {
           "name": "id",
           "type": "text",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "usuario_id": {
           "name": "usuario_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "aberta_em": {
           "name": "aberta_em",
-          "type": "timestamp with time zone",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "fundo_troco": {
           "name": "fundo_troco",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "fechada_em": {
           "name": "fechada_em",
-          "type": "timestamp with time zone",
+          "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "valor_contado": {
           "name": "valor_contado",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "status": {
           "name": "status",
-          "type": "status_caixa",
-          "typeSchema": "public",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         }
       },
       "indexes": {
         "caixa_um_aberto": {
           "name": "caixa_um_aberto",
           "columns": [
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
+            "status"
           ],
           "isUnique": true,
-          "where": "\"caixa_sessoes\".\"status\" = 'ABERTA'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
+          "where": "\"caixa_sessoes\".\"status\" = 'ABERTA'"
         }
       },
       "foreignKeys": {
@@ -210,36 +208,40 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
       "checkConstraints": {
         "caixa_fundo_positivo": {
           "name": "caixa_fundo_positivo",
           "value": "\"caixa_sessoes\".\"fundo_troco\" >= 0"
+        },
+        "caixa_status_valido": {
+          "name": "caixa_status_valido",
+          "value": "\"caixa_sessoes\".\"status\" in ('ABERTA', 'FECHADA')"
         }
-      },
-      "isRLSEnabled": false
+      }
     },
-    "public.categorias": {
+    "categorias": {
       "name": "categorias",
-      "schema": "",
       "columns": {
         "id": {
           "name": "id",
           "type": "text",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "nome": {
           "name": "nome",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "categoria_pai_id": {
           "name": "categoria_pai_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {},
@@ -260,72 +262,76 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
+      "checkConstraints": {}
     },
-    "public.clientes": {
+    "clientes": {
       "name": "clientes",
-      "schema": "",
       "columns": {
         "id": {
           "name": "id",
           "type": "text",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "tipo": {
           "name": "tipo",
-          "type": "tipo_cliente",
-          "typeSchema": "public",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "nome_razao": {
           "name": "nome_razao",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "cpf_cnpj": {
           "name": "cpf_cnpj",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": "''"
         },
         "inscricao_estadual": {
           "name": "inscricao_estadual",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "telefone": {
           "name": "telefone",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": "''"
         },
         "email": {
           "name": "email",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "endereco": {
           "name": "endereco",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": "''"
         },
         "tipo_preco": {
           "name": "tipo_preco",
-          "type": "tipo_preco",
-          "typeSchema": "public",
+          "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": "'VAREJO'"
         },
         "limite_credito": {
@@ -333,13 +339,15 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": 0
         },
         "ativo": {
           "name": "ativo",
-          "type": "boolean",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": true
         }
       },
@@ -347,100 +355,125 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
       "checkConstraints": {
         "clientes_limite_positivo": {
           "name": "clientes_limite_positivo",
           "value": "\"clientes\".\"limite_credito\" >= 0"
+        },
+        "clientes_tipo_valido": {
+          "name": "clientes_tipo_valido",
+          "value": "\"clientes\".\"tipo\" in ('PF', 'PJ')"
+        },
+        "clientes_tipo_preco_valido": {
+          "name": "clientes_tipo_preco_valido",
+          "value": "\"clientes\".\"tipo_preco\" in ('VAREJO', 'ATACADO')"
         }
-      },
-      "isRLSEnabled": false
+      }
     },
-    "public.documentos": {
+    "documentos": {
       "name": "documentos",
-      "schema": "",
       "columns": {
         "id": {
           "name": "id",
           "type": "text",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "venda_id": {
           "name": "venda_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "tipo": {
           "name": "tipo",
-          "type": "tipo_documento",
-          "typeSchema": "public",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "numero": {
           "name": "numero",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "emitido_em": {
           "name": "emitido_em",
-          "type": "timestamp with time zone",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "emitente_snapshot": {
           "name": "emitente_snapshot",
-          "type": "jsonb",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "destinatario_snapshot": {
           "name": "destinatario_snapshot",
-          "type": "jsonb",
+          "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "serie": {
           "name": "serie",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "chave_acesso": {
           "name": "chave_acesso",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "protocolo": {
           "name": "protocolo",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "status_sefaz": {
           "name": "status_sefaz",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "xml_url": {
           "name": "xml_url",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "pdf_url": {
           "name": "pdf_url",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "documentos_numero_unique": {
+          "name": "documentos_numero_unique",
+          "columns": [
+            "numero"
+          ],
+          "isUnique": true
+        }
+      },
       "foreignKeys": {
         "documentos_venda_id_vendas_id_fk": {
           "name": "documentos_venda_id_vendas_id_fk",
@@ -457,53 +490,52 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "documentos_numero_unique": {
-          "name": "documentos_numero_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "numero"
-          ]
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "documentos_tipo_valido": {
+          "name": "documentos_tipo_valido",
+          "value": "\"documentos\".\"tipo\" in ('RECIBO', 'PEDIDO', 'NFE', 'NFCE')"
         }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
+      }
     },
-    "public.empresa": {
+    "empresa": {
       "name": "empresa",
-      "schema": "",
       "columns": {
         "id": {
           "name": "id",
           "type": "integer",
           "primaryKey": true,
           "notNull": true,
+          "autoincrement": false,
           "default": 1
         },
         "razao_social": {
           "name": "razao_social",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "nome_fantasia": {
           "name": "nome_fantasia",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "cnpj": {
           "name": "cnpj",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "inscricao_estadual": {
           "name": "inscricao_estadual",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": "''"
         },
         "regime_tributario": {
@@ -511,6 +543,7 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": "''"
         },
         "endereco": {
@@ -518,6 +551,7 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": "''"
         },
         "telefone": {
@@ -525,6 +559,7 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": "''"
         },
         "email": {
@@ -532,6 +567,7 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": "''"
         }
       },
@@ -539,102 +575,101 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
       "checkConstraints": {
         "empresa_uma_so": {
           "name": "empresa_uma_so",
           "value": "\"empresa\".\"id\" = 1"
         }
-      },
-      "isRLSEnabled": false
+      }
     },
-    "public.entrada_itens": {
+    "entrada_itens": {
       "name": "entrada_itens",
-      "schema": "",
       "columns": {
         "id": {
           "name": "id",
           "type": "text",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "entrada_id": {
           "name": "entrada_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "posicao": {
           "name": "posicao",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "produto_id": {
           "name": "produto_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "qtd_compra": {
           "name": "qtd_compra",
-          "type": "numeric(12, 3)",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "unidade_compra": {
           "name": "unidade_compra",
-          "type": "unidade_compra",
-          "typeSchema": "public",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "fator_conversao": {
           "name": "fator_conversao",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "qtd_base": {
           "name": "qtd_base",
-          "type": "numeric(12, 3)",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "custo_unit_compra": {
           "name": "custo_unit_compra",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "custo_unit_base": {
           "name": "custo_unit_base",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "valor_total": {
           "name": "valor_total",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         }
       },
       "indexes": {
         "entrada_itens_entrada": {
           "name": "entrada_itens_entrada",
           "columns": [
-            {
-              "expression": "entrada_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
+            "entrada_id"
           ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -667,7 +702,6 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
       "checkConstraints": {
         "entrada_itens_qtd_positiva": {
           "name": "entrada_itens_qtd_positiva",
@@ -676,64 +710,82 @@
         "entrada_itens_custo_positivo": {
           "name": "entrada_itens_custo_positivo",
           "value": "\"entrada_itens\".\"custo_unit_compra\" > 0"
+        },
+        "entrada_itens_unidade_valida": {
+          "name": "entrada_itens_unidade_valida",
+          "value": "\"entrada_itens\".\"unidade_compra\" in ('UN', 'CX', 'FD', 'ENG', 'BARRIL')"
         }
-      },
-      "isRLSEnabled": false
+      }
     },
-    "public.entradas": {
+    "entradas": {
       "name": "entradas",
-      "schema": "",
       "columns": {
         "id": {
           "name": "id",
           "type": "text",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "numero": {
           "name": "numero",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "fornecedor_id": {
           "name": "fornecedor_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "data": {
           "name": "data",
-          "type": "timestamp with time zone",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "documento_fornecedor": {
           "name": "documento_fornecedor",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "valor_total": {
           "name": "valor_total",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "usuario_id": {
           "name": "usuario_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "observacao": {
           "name": "observacao",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "entradas_numero_unique": {
+          "name": "entradas_numero_unique",
+          "columns": [
+            "numero"
+          ],
+          "isUnique": true
+        }
+      },
       "foreignKeys": {
         "entradas_fornecedor_id_fornecedores_id_fk": {
           "name": "entradas_fornecedor_id_fornecedores_id_fk",
@@ -763,46 +815,39 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "entradas_numero_unique": {
-          "name": "entradas_numero_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "numero"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     },
-    "public.fornecedores": {
+    "fornecedores": {
       "name": "fornecedores",
-      "schema": "",
       "columns": {
         "id": {
           "name": "id",
           "type": "text",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "razao_social": {
           "name": "razao_social",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "cnpj": {
           "name": "cnpj",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "telefone": {
           "name": "telefone",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": "''"
         },
         "email": {
@@ -810,6 +855,7 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": "''"
         },
         "endereco": {
@@ -817,13 +863,15 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": "''"
         },
         "ativo": {
           "name": "ativo",
-          "type": "boolean",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": true
         }
       },
@@ -831,66 +879,59 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
+      "checkConstraints": {}
     },
-    "public.log_auditoria": {
+    "log_auditoria": {
       "name": "log_auditoria",
-      "schema": "",
       "columns": {
+        "ordem": {
+          "name": "ordem",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
         "id": {
           "name": "id",
           "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "ordem": {
-          "name": "ordem",
-          "type": "bigint",
           "primaryKey": false,
           "notNull": true,
-          "identity": {
-            "type": "always",
-            "name": "log_auditoria_ordem_seq",
-            "schema": "public",
-            "increment": "1",
-            "startWith": "1",
-            "minValue": "1",
-            "maxValue": "9223372036854775807",
-            "cache": "1",
-            "cycle": false
-          }
+          "autoincrement": false
         },
         "ocorrido_em": {
           "name": "ocorrido_em",
-          "type": "timestamp with time zone",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "usuario_id": {
           "name": "usuario_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "acao": {
           "name": "acao",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "entidade": {
           "name": "entidade",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "entidade_id": {
           "name": "entidade_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": "''"
         },
         "detalhe": {
@@ -898,36 +939,38 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": "''"
         },
         "ip": {
           "name": "ip",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "user_agent": {
           "name": "user_agent",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {
+        "log_auditoria_id_unique": {
+          "name": "log_auditoria_id_unique",
+          "columns": [
+            "id"
+          ],
+          "isUnique": true
+        },
         "log_auditoria_ocorrido": {
           "name": "log_auditoria_ocorrido",
           "columns": [
-            {
-              "expression": "ocorrido_em",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
+            "ocorrido_em"
           ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -947,115 +990,110 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
+      "checkConstraints": {}
     },
-    "public.movimentos_estoque": {
+    "movimentos_estoque": {
       "name": "movimentos_estoque",
-      "schema": "",
       "columns": {
+        "ordem": {
+          "name": "ordem",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
         "id": {
           "name": "id",
           "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "ordem": {
-          "name": "ordem",
-          "type": "bigint",
           "primaryKey": false,
           "notNull": true,
-          "identity": {
-            "type": "always",
-            "name": "movimentos_estoque_ordem_seq",
-            "schema": "public",
-            "increment": "1",
-            "startWith": "1",
-            "minValue": "1",
-            "maxValue": "9223372036854775807",
-            "cache": "1",
-            "cycle": false
-          }
+          "autoincrement": false
         },
         "produto_id": {
           "name": "produto_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "data": {
           "name": "data",
-          "type": "timestamp with time zone",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "tipo": {
           "name": "tipo",
-          "type": "tipo_movimento",
-          "typeSchema": "public",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "qtd": {
           "name": "qtd",
-          "type": "numeric(12, 3)",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "saldo_apos": {
           "name": "saldo_apos",
-          "type": "numeric(12, 3)",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "custo_unit_no_momento": {
           "name": "custo_unit_no_momento",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "origem_tipo": {
           "name": "origem_tipo",
-          "type": "origem_movimento",
-          "typeSchema": "public",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "origem_id": {
           "name": "origem_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "usuario_id": {
           "name": "usuario_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "motivo": {
           "name": "motivo",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {
+        "movimentos_estoque_id_unique": {
+          "name": "movimentos_estoque_id_unique",
+          "columns": [
+            "id"
+          ],
+          "isUnique": true
+        },
         "movimentos_produto": {
           "name": "movimentos_produto",
           "columns": [
-            {
-              "expression": "produto_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
+            "produto_id"
           ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -1088,90 +1126,103 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
       "checkConstraints": {
         "movimentos_qtd_nao_zero": {
           "name": "movimentos_qtd_nao_zero",
           "value": "\"movimentos_estoque\".\"qtd\" <> 0"
+        },
+        "movimentos_tipo_valido": {
+          "name": "movimentos_tipo_valido",
+          "value": "\"movimentos_estoque\".\"tipo\" in ('ENTRADA', 'SAIDA', 'AJUSTE', 'PERDA', 'DEVOLUCAO', 'INVENTARIO_INICIAL')"
+        },
+        "movimentos_origem_valida": {
+          "name": "movimentos_origem_valida",
+          "value": "\"movimentos_estoque\".\"origem_tipo\" in ('ENTRADA', 'VENDA', 'AJUSTE', 'CARGA_INICIAL')"
         }
-      },
-      "isRLSEnabled": false
+      }
     },
-    "public.produtos": {
+    "produtos": {
       "name": "produtos",
-      "schema": "",
       "columns": {
         "id": {
           "name": "id",
           "type": "text",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "sku": {
           "name": "sku",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "codigo_barras": {
           "name": "codigo_barras",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": "''"
         },
         "nome": {
           "name": "nome",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "categoria_id": {
           "name": "categoria_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "tipo": {
           "name": "tipo",
-          "type": "tipo_produto",
-          "typeSchema": "public",
+          "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": "'NORMAL'"
         },
         "vasilhame_id": {
           "name": "vasilhame_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "unidade_base": {
           "name": "unidade_base",
-          "type": "unidade_base",
-          "typeSchema": "public",
+          "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": "'UN'"
         },
         "unidade_compra": {
           "name": "unidade_compra",
-          "type": "unidade_compra",
-          "typeSchema": "public",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "fator_conversao": {
           "name": "fator_conversao",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "custo_medio": {
           "name": "custo_medio",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": 0
         },
         "custo_ultima_compra": {
@@ -1179,6 +1230,7 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": 0
         },
         "preco_varejo": {
@@ -1186,6 +1238,7 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": 0
         },
         "preco_atacado": {
@@ -1193,38 +1246,44 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": 0
         },
         "preco_gelado": {
           "name": "preco_gelado",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "vende_gelado": {
           "name": "vende_gelado",
-          "type": "boolean",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "qtd_minima_atacado": {
           "name": "qtd_minima_atacado",
-          "type": "numeric(12, 3)",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "estoque_minimo": {
           "name": "estoque_minimo",
-          "type": "numeric(12, 3)",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": 0
         },
         "saldo_atual": {
           "name": "saldo_atual",
-          "type": "numeric(12, 3)",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": 0
         },
         "ncm": {
@@ -1232,50 +1291,54 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": "''"
         },
         "cest": {
           "name": "cest",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "cfop": {
           "name": "cfop",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "origem": {
           "name": "origem",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "ativo": {
           "name": "ativo",
-          "type": "boolean",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": true
         }
       },
       "indexes": {
+        "produtos_sku_unique": {
+          "name": "produtos_sku_unique",
+          "columns": [
+            "sku"
+          ],
+          "isUnique": true
+        },
         "produtos_codigo_barras_unico": {
           "name": "produtos_codigo_barras_unico",
           "columns": [
-            {
-              "expression": "codigo_barras",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
+            "codigo_barras"
           ],
           "isUnique": true,
-          "where": "\"produtos\".\"codigo_barras\" <> ''",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
+          "where": "\"produtos\".\"codigo_barras\" <> ''"
         }
       },
       "foreignKeys": {
@@ -1307,16 +1370,7 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "produtos_sku_unique": {
-          "name": "produtos_sku_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "sku"
-          ]
-        }
-      },
-      "policies": {},
+      "uniqueConstraints": {},
       "checkConstraints": {
         "produtos_precos_positivos": {
           "name": "produtos_precos_positivos",
@@ -1333,50 +1387,65 @@
         "produtos_custo_positivo": {
           "name": "produtos_custo_positivo",
           "value": "\"produtos\".\"custo_medio\" >= 0 and \"produtos\".\"custo_ultima_compra\" >= 0"
+        },
+        "produtos_tipo_valido": {
+          "name": "produtos_tipo_valido",
+          "value": "\"produtos\".\"tipo\" in ('NORMAL', 'VASILHAME')"
+        },
+        "produtos_unidade_base_valida": {
+          "name": "produtos_unidade_base_valida",
+          "value": "\"produtos\".\"unidade_base\" in ('UN', 'L')"
+        },
+        "produtos_unidade_compra_valida": {
+          "name": "produtos_unidade_compra_valida",
+          "value": "\"produtos\".\"unidade_compra\" in ('UN', 'CX', 'FD', 'ENG', 'BARRIL')"
         }
-      },
-      "isRLSEnabled": false
+      }
     },
-    "public.usuarios": {
+    "usuarios": {
       "name": "usuarios",
-      "schema": "",
       "columns": {
         "id": {
           "name": "id",
           "type": "text",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "nome": {
           "name": "nome",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "email": {
           "name": "email",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "senha_hash": {
           "name": "senha_hash",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "perfil": {
           "name": "perfil",
-          "type": "perfil",
-          "typeSchema": "public",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "ativo": {
           "name": "ativo",
-          "type": "boolean",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": true
         },
         "tentativas_falhas": {
@@ -1384,146 +1453,146 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": 0
         },
         "bloqueado_ate": {
           "name": "bloqueado_ate",
-          "type": "timestamp with time zone",
+          "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {
         "usuarios_email_unico": {
           "name": "usuarios_email_unico",
           "columns": [
-            {
-              "expression": "lower(\"email\")",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
+            "lower(\"email\")"
           ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
+          "isUnique": true
         }
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
+      "checkConstraints": {
+        "usuarios_perfil_valido": {
+          "name": "usuarios_perfil_valido",
+          "value": "\"usuarios\".\"perfil\" in ('ADMIN', 'CAIXA', 'ESTOQUE')"
+        }
+      }
     },
-    "public.venda_itens": {
+    "venda_itens": {
       "name": "venda_itens",
-      "schema": "",
       "columns": {
         "id": {
           "name": "id",
           "type": "text",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "venda_id": {
           "name": "venda_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "posicao": {
           "name": "posicao",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "produto_id": {
           "name": "produto_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "descricao": {
           "name": "descricao",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "qtd": {
           "name": "qtd",
-          "type": "numeric(12, 3)",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "preco_unit": {
           "name": "preco_unit",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "custo_unit": {
           "name": "custo_unit",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "tipo_preco_aplicado": {
           "name": "tipo_preco_aplicado",
-          "type": "tipo_preco",
-          "typeSchema": "public",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "embalagem_unidade": {
           "name": "embalagem_unidade",
-          "type": "unidade_compra",
-          "typeSchema": "public",
+          "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "embalagem_fator": {
           "name": "embalagem_fator",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "gelado": {
           "name": "gelado",
-          "type": "boolean",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": false
         },
         "adicional_gelado": {
           "name": "adicional_gelado",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "total": {
           "name": "total",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         }
       },
       "indexes": {
         "venda_itens_venda": {
           "name": "venda_itens_venda",
           "columns": [
-            {
-              "expression": "venda_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
+            "venda_id"
           ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -1556,7 +1625,6 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
       "checkConstraints": {
         "venda_itens_qtd_positiva": {
           "name": "venda_itens_qtd_positiva",
@@ -1565,136 +1633,162 @@
         "venda_itens_preco_positivo": {
           "name": "venda_itens_preco_positivo",
           "value": "\"venda_itens\".\"preco_unit\" > 0"
+        },
+        "venda_itens_tipo_preco_valido": {
+          "name": "venda_itens_tipo_preco_valido",
+          "value": "\"venda_itens\".\"tipo_preco_aplicado\" in ('VAREJO', 'ATACADO')"
+        },
+        "venda_itens_embalagem_valida": {
+          "name": "venda_itens_embalagem_valida",
+          "value": "\"venda_itens\".\"embalagem_unidade\" in ('UN', 'CX', 'FD', 'ENG', 'BARRIL')"
         }
-      },
-      "isRLSEnabled": false
+      }
     },
-    "public.vendas": {
+    "vendas": {
       "name": "vendas",
-      "schema": "",
       "columns": {
         "id": {
           "name": "id",
           "type": "text",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "numero": {
           "name": "numero",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "cliente_id": {
           "name": "cliente_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "data": {
           "name": "data",
-          "type": "timestamp with time zone",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "usuario_id": {
           "name": "usuario_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "caixa_sessao_id": {
           "name": "caixa_sessao_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "tipo_preco": {
           "name": "tipo_preco",
-          "type": "tipo_preco",
-          "typeSchema": "public",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "subtotal": {
           "name": "subtotal",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "desconto": {
           "name": "desconto",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
           "default": 0
         },
         "total": {
           "name": "total",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "custo_total": {
           "name": "custo_total",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "forma_pagamento": {
           "name": "forma_pagamento",
-          "type": "forma_pagamento",
-          "typeSchema": "public",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "status": {
           "name": "status",
-          "type": "status_venda",
-          "typeSchema": "public",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "autoincrement": false
         },
         "cancelada_em": {
           "name": "cancelada_em",
-          "type": "timestamp with time zone",
+          "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "cancelada_por": {
           "name": "cancelada_por",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "motivo_cancelamento": {
           "name": "motivo_cancelamento",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         },
         "chave_idempotencia": {
           "name": "chave_idempotencia",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {
+        "vendas_numero_unique": {
+          "name": "vendas_numero_unique",
+          "columns": [
+            "numero"
+          ],
+          "isUnique": true
+        },
+        "vendas_chave_idempotencia_unique": {
+          "name": "vendas_chave_idempotencia_unique",
+          "columns": [
+            "chave_idempotencia"
+          ],
+          "isUnique": true
+        },
         "vendas_data": {
           "name": "vendas_data",
           "columns": [
-            {
-              "expression": "data",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
+            "data"
           ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -1752,165 +1846,43 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "vendas_numero_unique": {
-          "name": "vendas_numero_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "numero"
-          ]
-        },
-        "vendas_chave_idempotencia_unique": {
-          "name": "vendas_chave_idempotencia_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "chave_idempotencia"
-          ]
-        }
-      },
-      "policies": {},
+      "uniqueConstraints": {},
       "checkConstraints": {
         "vendas_valores_positivos": {
           "name": "vendas_valores_positivos",
           "value": "\"vendas\".\"desconto\" >= 0 and \"vendas\".\"total\" >= 0"
+        },
+        "vendas_tipo_preco_valido": {
+          "name": "vendas_tipo_preco_valido",
+          "value": "\"vendas\".\"tipo_preco\" in ('VAREJO', 'ATACADO')"
+        },
+        "vendas_forma_valida": {
+          "name": "vendas_forma_valida",
+          "value": "\"vendas\".\"forma_pagamento\" in ('DINHEIRO', 'PIX', 'DEBITO', 'CREDITO', 'FIADO')"
+        },
+        "vendas_status_valido": {
+          "name": "vendas_status_valido",
+          "value": "\"vendas\".\"status\" in ('FECHADA', 'CANCELADA')"
         }
-      },
-      "isRLSEnabled": false
+      }
     }
   },
-  "enums": {
-    "public.forma_pagamento": {
-      "name": "forma_pagamento",
-      "schema": "public",
-      "values": [
-        "DINHEIRO",
-        "PIX",
-        "DEBITO",
-        "CREDITO",
-        "FIADO"
-      ]
-    },
-    "public.origem_movimento": {
-      "name": "origem_movimento",
-      "schema": "public",
-      "values": [
-        "ENTRADA",
-        "VENDA",
-        "AJUSTE",
-        "CARGA_INICIAL"
-      ]
-    },
-    "public.perfil": {
-      "name": "perfil",
-      "schema": "public",
-      "values": [
-        "ADMIN",
-        "CAIXA",
-        "ESTOQUE"
-      ]
-    },
-    "public.status_caixa": {
-      "name": "status_caixa",
-      "schema": "public",
-      "values": [
-        "ABERTA",
-        "FECHADA"
-      ]
-    },
-    "public.status_venda": {
-      "name": "status_venda",
-      "schema": "public",
-      "values": [
-        "FECHADA",
-        "CANCELADA"
-      ]
-    },
-    "public.tipo_caixa_mov": {
-      "name": "tipo_caixa_mov",
-      "schema": "public",
-      "values": [
-        "VENDA",
-        "SANGRIA",
-        "SUPRIMENTO",
-        "DESPESA",
-        "RECEBIMENTO",
-        "ESTORNO"
-      ]
-    },
-    "public.tipo_cliente": {
-      "name": "tipo_cliente",
-      "schema": "public",
-      "values": [
-        "PF",
-        "PJ"
-      ]
-    },
-    "public.tipo_documento": {
-      "name": "tipo_documento",
-      "schema": "public",
-      "values": [
-        "RECIBO",
-        "PEDIDO",
-        "NFE",
-        "NFCE"
-      ]
-    },
-    "public.tipo_movimento": {
-      "name": "tipo_movimento",
-      "schema": "public",
-      "values": [
-        "ENTRADA",
-        "SAIDA",
-        "AJUSTE",
-        "PERDA",
-        "DEVOLUCAO",
-        "INVENTARIO_INICIAL"
-      ]
-    },
-    "public.tipo_preco": {
-      "name": "tipo_preco",
-      "schema": "public",
-      "values": [
-        "VAREJO",
-        "ATACADO"
-      ]
-    },
-    "public.tipo_produto": {
-      "name": "tipo_produto",
-      "schema": "public",
-      "values": [
-        "NORMAL",
-        "VASILHAME"
-      ]
-    },
-    "public.unidade_base": {
-      "name": "unidade_base",
-      "schema": "public",
-      "values": [
-        "UN",
-        "L"
-      ]
-    },
-    "public.unidade_compra": {
-      "name": "unidade_compra",
-      "schema": "public",
-      "values": [
-        "UN",
-        "CX",
-        "FD",
-        "ENG",
-        "BARRIL"
-      ]
-    }
-  },
-  "schemas": {},
-  "sequences": {},
-  "roles": {},
-  "policies": {},
   "views": {},
+  "enums": {},
   "_meta": {
-    "columns": {},
     "schemas": {},
-    "tables": {}
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {
+      "usuarios_email_unico": {
+        "columns": {
+          "lower(\"email\")": {
+            "isExpression": true
+          }
+        }
+      }
+    }
   }
 }

@@ -7,8 +7,8 @@ O sistema roda de dois jeitos, com o mesmo código:
 
 | Modo | Quando | Dados | Entrada |
 |---|---|---|---|
-| **Demonstração** | sem `DATABASE_URL` — é assim na Vercel | fictícios, no `localStorage` do navegador | escolhendo o perfil |
-| **Banco local** | com `DATABASE_URL` no `.env.local` | Postgres no Docker, no próprio computador | e-mail e senha |
+| **Demonstração** | sem `BANCO_ARQUIVO` — é assim na Vercel | fictícios, no `localStorage` do navegador | escolhendo o perfil |
+| **Banco local** | com `BANCO_ARQUIVO` no `.env.local` | SQLite, num arquivo do próprio computador | e-mail e senha |
 
 Na demonstração, nada sai da máquina de quem está vendo.
 
@@ -31,15 +31,13 @@ Abre em <http://localhost:3000>. Sem `.env.local`, é a demonstração.
 
 ## Rodar com o banco local
 
-Precisa do [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-aberto.
-
 ```bash
 cp .env.example .env.local
 ```
 
-Troque o `NEXTAUTH_SECRET` do `.env.local` por um gerado (o comando está no
-próprio arquivo). Depois:
+No `.env.local`, troque o `NEXTAUTH_SECRET` por um gerado (o comando está no
+próprio arquivo) e aponte o `BANCO_ARQUIVO` para uma pasta **fora do OneDrive**.
+Depois:
 
 ```bash
 npm run banco:preparar
@@ -49,44 +47,39 @@ npm run banco:preparar
 npm run dev
 ```
 
-O `banco:preparar` liga o Postgres, cria as tabelas e carrega os dados da
+O `banco:preparar` cria o arquivo, as tabelas e carrega os dados da
 demonstração. Os três usuários (`maria@`, `marcos@` e `jorge@distribuidora.com.br`)
 entram com a `SENHA_INICIAL` do `.env.local`.
 
 | Comando | O que faz |
 |---|---|
-| `npm run banco:subir` / `banco:parar` | liga e desliga o Postgres |
 | `npm run banco:migrar` | cria ou atualiza as tabelas |
 | `npm run banco:semear` | **apaga tudo** e carrega a demonstração |
 | `npm run banco:zerar` | **apaga tudo** e deixa só empresa, usuários e categorias — pronto para os dados reais |
 | `npm run banco:gerar` | depois de mudar `lib/servidor/schema.ts`, gera a migration |
 
-Os dados ficam num volume do Docker, **fora da pasta do projeto** de propósito:
-o OneDrive sincronizando os arquivos de um Postgres ligado corrompe o banco. A
-porta só abre em `127.0.0.1:5433`, então o banco não aparece na rede. O sistema,
-sim: pelo IP do computador, o celular na mesma rede Wi-Fi também entra.
-
-Se o Docker Desktop fechar sozinho ao abrir, com erro sobre `dockerInference`,
-é um arquivo velho travado: renomeie a pasta `%LOCALAPPDATA%\Docker\run` e
-abra de novo.
+O arquivo do banco fica **fora da pasta do projeto** de propósito: o OneDrive
+sincronizando um SQLite ligado corrompe o banco. Só o servidor abre o arquivo,
+então o banco não aparece na rede. O sistema, sim: pelo IP do computador, o
+celular na mesma rede Wi-Fi também entra.
 
 ### Como o banco funciona
 
 ```
-tela ── ação ──> app/acoes.ts ── sessão ── permissão ── transação com trava
+tela ── ação ──> app/acoes.ts ── sessão ── permissão ── transação
                                                               │
                                      lib/operacoes.ts <───────┘
                                      (a regra de negócio,
                                       a mesma da demonstração)
                                               │ efeitos
                                               v
-                                     lib/servidor/estado.ts ──> Postgres
+                                     lib/servidor/estado.ts ──> SQLite
 ```
 
 - **Uma regra, dois modos.** Cada operação (venda, entrada, cancelamento,
   caixa, cadastros) é uma função pura em `lib/operacoes.ts` que lê o estado e
   devolve o que gravar. A demonstração aplica no `localStorage`, o servidor
-  aplica no Postgres. Preço, gelado, embalagem, custo médio e casco não têm
+  aplica no SQLite. Preço, gelado, embalagem, custo médio e casco não têm
   duas versões para discordar.
 - **O servidor não confia no navegador.** Recalcula o preço da venda, ignora
   custo e saldo vindos de formulário, e mantém o preço quando quem salvou não é
@@ -96,13 +89,14 @@ tela ── ação ──> app/acoes.ts ── sessão ── permissão ── 
   nem as entradas de mercadoria (`lib/redigir.ts`). Esconder na tela não
   bastaria: o dado chegaria no navegador.
 - **Tudo ou nada.** A venda grava venda, itens, baixa de estoque, casco, caixa
-  e recibo numa transação. Uma trava (`pg_advisory_xact_lock`) faz as gravações
-  saírem uma de cada vez: duas vendas simultâneas nunca pegam o mesmo número
+  e recibo numa transação. O driver do SQLite é síncrono, então as gravações
+  saem uma de cada vez: duas vendas simultâneas nunca pegam o mesmo número
   nem perdem baixa de estoque. O duplo clique no "Finalizar" devolve a mesma
   venda (chave de idempotência).
 - **O banco é a última defesa.** Constraints recusam preço negativo,
-  quantidade zero e dois caixas abertos; um gatilho faz o razão do estoque e a
-  auditoria só aceitarem inserção.
+  quantidade zero e dois caixas abertos, e as tabelas `STRICT` recusam texto em
+  coluna de número; gatilhos fazem o razão do estoque e a auditoria só aceitarem
+  inserção.
 - **Login** com e-mail e senha (next-auth, hash bcrypt de custo 12, cookie
   `httpOnly`). Cinco senhas erradas travam a conta por 15 minutos. Toda
   entrada e toda falha vão para a auditoria.
@@ -174,7 +168,7 @@ caixa não fecha por centavos.
 |---|---|---|
 | Dinheiro | inteiro em **centavos** | `R$ 3,20` → `320` |
 | Custo médio | inteiro em **1/10000 de real** (4 casas) | `R$ 3,3125` → `33125` |
-| Quantidade | número em unidade base, até 3 casas | `12 latas` → `12` |
+| Quantidade | número em unidade base, até 3 casas (milésimos no banco) | `12 latas` → `12` |
 
 ### Unidade ou embalagem
 
@@ -238,12 +232,11 @@ lib/
   seed.ts               catálogo fictício + 60 dias de histórico
   store.tsx             estado das telas, nos dois modos
   servidor/
-    schema.ts           as 15 tabelas no Postgres (Drizzle)
+    schema.ts           as 15 tabelas no SQLite (Drizzle)
     estado.ts           leitura, gravação e carga do banco
     auth.ts             login, bloqueio e sessão
 drizzle/                migrations (inclui o gatilho de só-inserção)
 scripts/banco.ts        migrar, semear e zerar
-docker-compose.yml      o Postgres local
   consultas.ts          leituras derivadas (painel, relatórios)
   exportar.ts           PDF, Excel e CSV
   documentos.ts         CPF, CNPJ, telefone e consulta à Receita
@@ -287,7 +280,7 @@ Três formatos, porque são três necessidades diferentes:
 ## O que ainda não é
 
 - A demonstração não tem banco nem login: o banco local roda só no computador
-  onde está o Docker
+  onde está o arquivo
 - O banco local ainda não tem **backup automático** nem botão de baixar
   backup, **troca de senha** pela tela, nem **cadastro de usuários** — os três
   usuários vêm do `banco:semear` / `banco:zerar`
