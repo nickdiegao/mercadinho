@@ -15,7 +15,10 @@ import {
   Menu,
   Package,
   RotateCcw,
+  Settings,
   Truck,
+  UserCog,
+  UserRound,
   Users,
   Wallet,
   X,
@@ -34,6 +37,8 @@ const MENU = [
   { href: "/caixa", rotulo: "Caixa", icone: Wallet, ver: (p: Papeis) => p.podeVender },
   { href: "/relatorios", rotulo: "Relatórios", icone: BarChart3, ver: (p: Papeis) => p.podeVerCusto },
   { href: "/carga-inicial", rotulo: "Carga inicial", icone: ClipboardList, ver: (p: Papeis) => p.podeEstoque },
+  { href: "/usuarios", rotulo: "Usuários", icone: UserCog, ver: (p: Papeis) => p.ehAdmin, soBanco: true },
+  { href: "/configuracoes", rotulo: "Configurações", icone: Settings, ver: (p: Papeis) => p.ehAdmin, soBanco: true },
 ];
 
 type Papeis = ReturnType<typeof usePerfil>;
@@ -57,7 +62,8 @@ export default function LayoutSistema({ children }: { children: React.ReactNode 
   // os dados saem do navegador
   if (!carregado || !estado.usuarioAtualId) return <Esqueleto />;
 
-  const itens = MENU.filter((m) => m.ver(papeis));
+  const itens = MENU.filter((m) => m.ver(papeis) && (!m.soBanco || modo === "banco"));
+  const nomeEmpresa = estado.empresa.nomeFantasia;
 
   // o item ativo e o de href mais longo que casa com o caminho — senao
   // /vendas/nova acenderia "Nova venda" e "Vendas" ao mesmo tempo
@@ -70,7 +76,7 @@ export default function LayoutSistema({ children }: { children: React.ReactNode 
       {/* topo mobile */}
       <header className="nao-imprime sticky top-0 z-30 flex items-center justify-between border-b border-white/10 bg-marca-escura px-4 py-3 lg:hidden">
         <div>
-          <p className="text-sm font-bold text-white">Distribuidora</p>
+          <p className="text-sm font-bold text-white">{nomeEmpresa}</p>
           <p className="text-[11px] text-white/50">{papeis.usuario?.nome}</p>
         </div>
         <button
@@ -90,10 +96,10 @@ export default function LayoutSistema({ children }: { children: React.ReactNode 
       >
         <div className="hidden border-b border-white/10 px-5 py-5 lg:block">
           <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-white/40">
-            {modo === "banco" ? "Banco local" : "Mockup"}
+            {modo === "banco" ? "Sistema local" : "Mockup"}
           </p>
           <p className="mt-1.5 text-[15px] font-bold leading-tight text-white">
-            Distribuidora
+            {nomeEmpresa}
           </p>
         </div>
 
@@ -130,6 +136,14 @@ export default function LayoutSistema({ children }: { children: React.ReactNode 
               {papeis.perfil}
             </p>
           </div>
+          {modo === "banco" && (
+            <Link
+              href="/conta"
+              className="transicao flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-[13px] text-white/50 hover:bg-white/[0.07] hover:text-white"
+            >
+              <UserRound size={15} /> Minha conta
+            </Link>
+          )}
           {/* no banco local nao existe "voltar ao original": la os dados sao reais */}
           {modo === "demo" && (
             <button

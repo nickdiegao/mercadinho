@@ -4,7 +4,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { ArrowRight, Boxes, LogIn, ShieldCheck, Wallet } from "lucide-react";
 import { useEstado } from "@/lib/store";
+import { situacaoInicial } from "@/app/acoes-contas";
 import { Botao, Campo, Entrada } from "@/components/ui";
+import { PrimeiraAbertura } from "@/components/primeira-abertura";
+import { RecuperarSenha } from "@/components/recuperar-senha";
 import type { Perfil } from "@/lib/tipos";
 
 const DESCRICAO: Record<Perfil, { titulo: string; texto: string; icone: React.ReactNode }> = {
@@ -33,17 +36,7 @@ export default function Login() {
     if (carregado && estado.usuarioAtualId) router.replace("/painel");
   }, [carregado, estado.usuarioAtualId, router]);
 
-  if (modo === "banco") {
-    return (
-      <Moldura
-        selo="Banco local"
-        texto="Entre com o seu e-mail e senha. Cada pessoa enxerga uma parte diferente do sistema, conforme o perfil dela."
-        rodape="Os dados ficam no Postgres deste computador. Depois de 5 senhas erradas seguidas, a conta trava por 15 minutos."
-      >
-        <LoginComSenha />
-      </Moldura>
-    );
-  }
+  if (modo === "banco") return <EntradaComBanco />;
 
   function acessar(id: string) {
     entrar(id);
@@ -115,7 +108,61 @@ function Moldura({
   );
 }
 
-function LoginComSenha() {
+/** Com banco: a configuracao, na primeira vez; depois, o login. */
+function EntradaComBanco() {
+  const { recarregar } = useEstado();
+  const router = useRouter();
+  const [tela, setTela] = useState<"carregando" | "configurar" | "entrar" | "recuperar">("carregando");
+
+  useEffect(() => {
+    situacaoInicial()
+      .then((s) => setTela(s.precisaConfigurar ? "configurar" : "entrar"))
+      .catch(() => setTela("entrar"));
+  }, []);
+
+  async function entrarDepoisDeConfigurar(email: string, senha: string) {
+    if (await fazerLogin(email, senha).then((r) => r?.ok && !r.error)) {
+      await recarregar();
+      router.replace("/painel");
+    } else {
+      setTela("entrar");
+    }
+  }
+
+  if (tela === "configurar") {
+    return (
+      <Moldura
+        selo="Primeira abertura"
+        texto="Boas-vindas. Preencha os dados abaixo uma vez só: eles aparecem nos recibos, e o acesso criado aqui é o da administração."
+        rodape="Tudo fica guardado neste computador."
+      >
+        <PrimeiraAbertura onPronto={entrarDepoisDeConfigurar} />
+      </Moldura>
+    );
+  }
+
+  return (
+    <Moldura
+      selo="Sistema local"
+      texto="Entre com o seu e-mail e senha. Cada pessoa enxerga uma parte diferente do sistema, conforme o perfil dela."
+      rodape="Os dados ficam neste computador. Depois de 5 senhas erradas seguidas, a conta trava por 15 minutos."
+    >
+      {tela === "recuperar" ? (
+        <RecuperarSenha onVoltar={() => setTela("entrar")} />
+      ) : (
+        tela === "entrar" && <LoginComSenha onEsqueci={() => setTela("recuperar")} />
+      )}
+    </Moldura>
+  );
+}
+
+// carregado so aqui: a demonstracao nunca baixa o modulo de login
+const fazerLogin = (email: string, senha: string) =>
+  import("next-auth/react")
+    .then(({ signIn }) => signIn("credentials", { email, senha, redirect: false }))
+    .catch(() => null);
+
+function LoginComSenha({ onEsqueci }: { onEsqueci: () => void }) {
   const { recarregar } = useEstado();
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -128,10 +175,7 @@ function LoginComSenha() {
     if (entrando || !email.trim() || !senha) return;
     setErro(null);
     setEntrando(true);
-    // carregado so aqui: a demonstracao nunca baixa o modulo de login
-    const r = await import("next-auth/react")
-      .then(({ signIn }) => signIn("credentials", { email: email.trim(), senha, redirect: false }))
-      .catch(() => null);
+    const r = await fazerLogin(email.trim(), senha);
     if (r?.ok && !r.error) {
       await recarregar();
       router.replace("/painel");
@@ -141,9 +185,9 @@ function LoginComSenha() {
     setSenha("");
     setErro(
       !r
-        ? "Não foi possível falar com o servidor. O banco está ligado?"
+        ? "Não foi possível falar com o servidor."
         : r.error === "BLOQUEADO"
-          ? "Conta bloqueada por 15 minutos depois de 5 senhas erradas. Espere ou peça para a administradora."
+          ? "Conta bloqueada por 15 minutos depois de 5 senhas erradas. Espere ou peça para a administração."
           : "E-mail ou senha incorretos.",
     );
   }
@@ -180,6 +224,9 @@ function LoginComSenha() {
       <Botao variante="primario" type="submit" disabled={entrando || !email.trim() || !senha} className="w-full py-2.5">
         <LogIn size={16} /> {entrando ? "Entrando…" : "Entrar"}
       </Botao>
+      <button type="button" onClick={onEsqueci} className="text-[13px] font-semibold text-marca hover:underline">
+        Esqueci a senha
+      </button>
     </form>
   );
 }

@@ -90,6 +90,8 @@ export const usuarios = sqliteTable(
     email: text("email").notNull(),
     /** Nunca a senha: so o hash bcrypt. */
     senhaHash: text("senha_hash").notNull(),
+    /** Hash do codigo que recupera a senha sem depender de e-mail. So a administracao tem. */
+    recuperacaoHash: text("recuperacao_hash"),
     perfil: text("perfil", { enum: PERFIS }).notNull(),
     ativo: sim("ativo").notNull().default(true),
     /** 5 erros seguidos travam o login por 15 minutos. */

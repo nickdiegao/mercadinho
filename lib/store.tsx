@@ -117,7 +117,7 @@ export function EstadoProvider({ modo, children }: { modo: Modo; children: React
       setEstado(r.ok ? r.estado : { ...estadoVazio(), usuarioAtualId: null });
       if (!r.ok && r.erro !== "sem-sessao") setErro(r.erro);
     } catch {
-      setErro("Não foi possível falar com o servidor. O banco está ligado (npm run banco:subir)?");
+      setErro("Não foi possível falar com o servidor.");
     }
     setCarregado(true);
   }, [modo, setEstado]);
@@ -182,7 +182,7 @@ export function EstadoProvider({ modo, children }: { modo: Modo; children: React
 
       const r = await executar(nome, dados).catch(() => ({
         ok: false as const,
-        erro: "Não foi possível falar com o servidor. O banco está ligado?",
+        erro: "Não foi possível falar com o servidor.",
         semSessao: false,
       }));
       if (!r.ok) {

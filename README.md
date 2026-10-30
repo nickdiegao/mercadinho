@@ -58,6 +58,10 @@ entram com a `SENHA_INICIAL` do `.env.local`.
 | `npm run banco:zerar` | **apaga tudo** e deixa só empresa, usuários e categorias — pronto para os dados reais |
 | `npm run banco:gerar` | depois de mudar `lib/servidor/schema.ts`, gera a migration |
 
+Com um arquivo novo, sem usuários, o sistema abre na **primeira abertura**: cria
+a empresa e a administração e mostra o código de recuperação, uma vez só. As
+tabelas se atualizam sozinhas quando o servidor sobe (`instrumentation.ts`).
+
 O arquivo do banco fica **fora da pasta do projeto** de propósito: o OneDrive
 sincronizando um SQLite ligado corrompe o banco. Só o servidor abre o arquivo,
 então o banco não aparece na rede. O sistema, sim: pelo IP do computador, o
@@ -100,6 +104,12 @@ tela ── ação ──> app/acoes.ts ── sessão ── permissão ── 
 - **Login** com e-mail e senha (next-auth, hash bcrypt de custo 12, cookie
   `httpOnly`). Cinco senhas erradas travam a conta por 15 minutos. Toda
   entrada e toda falha vão para a auditoria.
+- **Contas** (`lib/servidor/contas.ts`). Nenhuma senha vem pronta: a primeira
+  abertura cria a administração e só funciona enquanto não existe usuário. Como
+  um sistema local não tem "esqueci a senha" por e-mail, a administração recebe
+  um código de recuperação, guardado só em hash; ao usar, ele morre e sai outro.
+  Quem não é da administração pede uma senha nova para ela. O sistema nunca fica
+  sem uma administração ativa, e ninguém desativa o próprio acesso.
 
 ## Publicar na Vercel
 
@@ -222,6 +232,7 @@ app/
   page.tsx              entrada: perfil (demo) ou e-mail e senha (banco)
   (sistema)/            as 12 telas, atrás do login
   acoes.ts              as ações do servidor: única porta para o banco
+  acoes-contas.ts       as ações de conta, que só existem com banco
   api/auth/             login (next-auth)
 lib/
   tipos.ts              o modelo de dados das 15 tabelas
@@ -235,6 +246,7 @@ lib/
     schema.ts           as 15 tabelas no SQLite (Drizzle)
     estado.ts           leitura, gravação e carga do banco
     auth.ts             login, bloqueio e sessão
+    contas.ts           primeira abertura, usuários, senhas e recuperação
 drizzle/                migrations (inclui o gatilho de só-inserção)
 scripts/banco.ts        migrar, semear e zerar
   consultas.ts          leituras derivadas (painel, relatórios)
@@ -281,9 +293,7 @@ Três formatos, porque são três necessidades diferentes:
 
 - A demonstração não tem banco nem login: o banco local roda só no computador
   onde está o arquivo
-- O banco local ainda não tem **backup automático** nem botão de baixar
-  backup, **troca de senha** pela tela, nem **cadastro de usuários** — os três
-  usuários vêm do `banco:semear` / `banco:zerar`
+- O banco local ainda não tem **backup automático** nem botão de baixar backup
 - Saldo negativo ainda é permitido (como na demonstração); o blueprint quer
   bloquear, com liberação pela administradora
 - O estado inteiro vai para a tela de uma vez: serve a uma loja com alguns
