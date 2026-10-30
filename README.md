@@ -111,6 +111,49 @@ tela ── ação ──> app/acoes.ts ── sessão ── permissão ── 
   Quem não é da administração pede uma senha nova para ela. O sistema nunca fica
   sem uma administração ativa, e ninguém desativa o próprio acesso.
 
+## Instalador para a cliente
+
+```bash
+npm run instalador
+```
+
+Gera `Distribuidora-Setup-<versão>.exe` em
+`%LOCALAPPDATA%\Mercadinho\empacotar\saida`. As ferramentas (Electron e cia) são
+instaladas nessa mesma pasta, fora do OneDrive, e o script para se encontrar
+algum valor do `.env.local` dentro do pacote.
+
+| O quê | Onde fica no computador dela |
+|---|---|
+| Programa | `%LOCALAPPDATA%\Programs\Distribuidora` |
+| Banco, segredo da sessão e log | `%LOCALAPPDATA%\Mercadinho\dados` — desinstalar ou atualizar não toca aqui |
+| Backups | `Documentos\Mercadinho Backups` |
+
+- **Como roda:** `electron/main.cjs` sobe o mesmo servidor Next num processo
+  separado, só em `127.0.0.1`, e abre a janela nele.
+- **Recibo:** sai direto na impressora escolhida em Configurações ou, sem
+  escolha, na que tiver `i9` ou `Elgin` no nome. Sem nenhuma, abre a janela de
+  impressão.
+- **Backup:** um por dia, os últimos 30, cada um conferido antes de valer
+  (`lib/servidor/backup.ts`). Versão nova que muda as tabelas faz uma cópia antes
+  de mexer. Configurações tem "Fazer backup agora" e "Restaurar um backup", que
+  guarda os dados de antes em `dados\antes-de-restaurar-*.db`.
+- **Atualização:** ao abrir, o programa procura versão nova nos Releases do
+  GitHub, baixa e instala ao fechar. Com o repositório privado ele não enxerga o
+  Release e segue na versão atual, sem avisar nada.
+
+### Publicar uma versão
+
+Suba `version` no `package.json`, rode `npm run instalador` e, na pasta `saida`:
+
+```bash
+gh release create v0.1.0 Distribuidora-Setup-0.1.0.exe Distribuidora-Setup-0.1.0.exe.blockmap latest.yml --repo nickdiegao/mercadinho --title "v0.1.0"
+```
+
+O `latest.yml` é o que o programa consulta: sem ele, não há atualização.
+
+O instalador não é assinado (o certificado é pago), então o Windows mostra o
+aviso do SmartScreen. Para instalar: **Mais informações → Executar assim mesmo**.
+
 ## Publicar na Vercel
 
 O projeto é um Next.js padrão. Sem variável de ambiente, a Vercel publica a
@@ -247,8 +290,11 @@ lib/
     estado.ts           leitura, gravação e carga do banco
     auth.ts             login, bloqueio e sessão
     contas.ts           primeira abertura, usuários, senhas e recuperação
+    backup.ts           cópia diária, conferência e limpeza
 drizzle/                migrations (inclui o gatilho de só-inserção)
 scripts/banco.ts        migrar, semear e zerar
+scripts/empacotar.mjs   gera o instalador
+electron/               o programa instalado (janela, impressora, atualização)
   consultas.ts          leituras derivadas (painel, relatórios)
   exportar.ts           PDF, Excel e CSV
   documentos.ts         CPF, CNPJ, telefone e consulta à Receita
@@ -293,7 +339,8 @@ Três formatos, porque são três necessidades diferentes:
 
 - A demonstração não tem banco nem login: o banco local roda só no computador
   onde está o arquivo
-- O banco local ainda não tem **backup automático** nem botão de baixar backup
+- O programa instalado atende um computador só: ele não abre para a rede, e o
+  backup automático só existe nele
 - Saldo negativo ainda é permitido (como na demonstração); o blueprint quer
   bloquear, com liberação pela administradora
 - O estado inteiro vai para a tela de uma vez: serve a uma loja com alguns

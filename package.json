@@ -11,7 +11,8 @@
     "banco:semear": "tsx scripts/banco.ts semear",
     "banco:zerar": "tsx scripts/banco.ts zerar",
     "banco:preparar": "npm run banco:semear",
-    "banco:gerar": "drizzle-kit generate"
+    "banco:gerar": "drizzle-kit generate",
+    "instalador": "node scripts/empacotar.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

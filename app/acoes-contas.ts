@@ -7,6 +7,7 @@
  */
 
 import { sessaoAtual } from "@/lib/servidor/auth";
+import { fazerBackup, situacaoBackup } from "@/lib/servidor/backup";
 import { temBanco } from "@/lib/servidor/db";
 import {
   ErroConta,
@@ -81,4 +82,19 @@ export async function definirSenhaDoUsuario(d: { id: string; senha: string }) {
 
 export async function gravarEmpresa(e: Empresa) {
   return tentar("empresa", async () => salvarEmpresa((await administracao()).usuarioId, e));
+}
+
+export async function lerSituacaoBackup() {
+  return tentar("situacao do backup", async () => {
+    await administracao();
+    return situacaoBackup();
+  });
+}
+
+export async function fazerBackupAgora() {
+  return tentar("backup", async () => {
+    await administracao();
+    await fazerBackup();
+    return situacaoBackup();
+  });
 }

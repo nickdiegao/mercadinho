@@ -12,7 +12,7 @@
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import * as schema from "./schema";
 
@@ -45,10 +45,23 @@ export function banco(): Banco {
   return (guardado.__mercadinhoBanco ??= criar(arquivo));
 }
 
+const pastaMigrations = () => process.env.BANCO_MIGRATIONS ?? join(process.cwd(), "drizzle");
+
 /** Cria ou atualiza as tabelas. */
 export function migrar() {
-  const pasta = process.env.BANCO_MIGRATIONS ?? join(process.cwd(), "drizzle");
-  migrate(banco(), { migrationsFolder: pasta });
+  migrate(banco(), { migrationsFolder: pastaMigrations() });
+}
+
+/** Banco com dados e migration ainda nao aplicada: o caso de uma versao nova. */
+export function temMigracaoPendente() {
+  const cliente = banco().$client;
+  const existe = cliente
+    .prepare("select 1 from sqlite_master where type = 'table' and name = '__drizzle_migrations'")
+    .get();
+  if (!existe) return false;
+  const aplicadas = (cliente.prepare("select count(*) n from __drizzle_migrations").get() as { n: number }).n;
+  const diario = JSON.parse(readFileSync(join(pastaMigrations(), "meta", "_journal.json"), "utf8"));
+  return aplicadas < diario.entries.length;
 }
 
 export function fecharBanco() {

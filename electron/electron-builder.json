@@ -1,0 +1,28 @@
+{
+  "appId": "br.com.mercadinho.distribuidora",
+  "productName": "Distribuidora",
+  "electronVersion": "45.2.0",
+  "directories": {
+    "app": "app",
+    "output": "saida",
+    "buildResources": "recursos"
+  },
+  "files": ["**/*"],
+  "afterPack": "./depois-de-empacotar.cjs",
+  "npmRebuild": false,
+  "win": {
+    "target": [{ "target": "nsis", "arch": ["x64"] }],
+    "icon": "recursos/icone.ico",
+    "artifactName": "Distribuidora-Setup-${version}.${ext}"
+  },
+  "nsis": {
+    "oneClick": true,
+    "perMachine": false,
+    "createDesktopShortcut": "always",
+    "createStartMenuShortcut": true,
+    "shortcutName": "Distribuidora",
+    "runAfterFinish": true,
+    "deleteAppDataOnUninstall": false
+  },
+  "publish": [{ "provider": "github", "owner": "nickdiegao", "repo": "mercadinho", "releaseType": "release" }]
+}
