@@ -14,6 +14,8 @@
  *   3. decimal com virgula, senao o valor entra como texto e nao soma
  */
 
+import { eletron } from "./eletron";
+
 export type Alinhamento = "texto" | "moeda" | "numero" | "percentual" | "data";
 
 export interface Coluna<T> {
@@ -214,8 +216,9 @@ export function imprimirPdf() {
 /**
  * Recibo na impressora de bobina. A pagina fica com a altura exata do recibo:
  * papel continuo nao tem folha, e uma pagina maior sairia com sobra em branco.
+ * No programa instalado sai direto na impressora, sem a janela de impressao.
  */
-export function imprimirBobina() {
+export async function imprimirBobina() {
   const recibo = document.getElementById("recibo-bobina");
   if (!recibo) return;
   const html = document.documentElement;
@@ -227,14 +230,18 @@ export function imprimirBobina() {
   pagina.textContent = `@page { size: 80mm ${altura}mm; margin: 0; }`;
   document.head.append(pagina);
 
-  window.addEventListener(
-    "afterprint",
-    () => {
-      pagina.remove();
-      html.classList.remove("bobina");
-    },
-    { once: true },
-  );
+  const limpar = () => {
+    pagina.remove();
+    html.classList.remove("bobina");
+  };
+
+  const direto = await eletron()?.imprimirRecibo(altura);
+  if (direto?.ok) {
+    limpar();
+    return;
+  }
+  // navegador, ou programa sem impressora definida: a janela deixa escolher
+  window.addEventListener("afterprint", limpar, { once: true });
   window.print();
 }
 

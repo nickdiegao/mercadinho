@@ -1,9 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { gravarEmpresa } from "@/app/acoes-contas";
+import { useEffect, useState } from "react";
+import { DatabaseBackup, FolderOpen, History, Printer } from "lucide-react";
+import { fazerBackupAgora, gravarEmpresa, lerSituacaoBackup } from "@/app/acoes-contas";
 import { CamposEmpresa } from "@/components/form-empresa";
-import { Aviso, Botao, Cabecalho, Cartao, TituloCartao } from "@/components/ui";
+import { Aviso, Botao, Cabecalho, Campo, Cartao, Selecao, TituloCartao } from "@/components/ui";
+import { eletron } from "@/lib/eletron";
+import { dataHora } from "@/lib/formato";
 import { useEstado, usePerfil } from "@/lib/store";
 import type { Empresa } from "@/lib/tipos";
 
@@ -24,8 +27,24 @@ export default function Configuracoes() {
       <Cabecalho titulo="Configurações" descricao="Os dados que aparecem nos recibos e o funcionamento do sistema neste computador." />
       <div className="flex max-w-3xl flex-col gap-4">
         <DadosEmpresa key={estado.empresa.cnpj} inicial={estado.empresa} />
+        <Impressora />
+        <Backup />
+        <Versao />
       </div>
     </>
+  );
+}
+
+function Mensagem({ tom, texto }: { tom: "ok" | "erro"; texto: string }) {
+  return (
+    <p
+      role="alert"
+      className={`rounded-md px-3 py-2 text-[13px] font-medium ${
+        tom === "ok" ? "bg-positivo-claro text-positivo" : "bg-alerta-claro text-alerta"
+      }`}
+    >
+      {texto}
+    </p>
   );
 }
 
@@ -60,16 +79,7 @@ function DadosEmpresa({ inicial }: { inicial: Empresa }) {
             setAviso(null);
           }}
         />
-        {aviso && (
-          <p
-            role="alert"
-            className={`rounded-md px-3 py-2 text-[13px] font-medium ${
-              aviso.tom === "ok" ? "bg-positivo-claro text-positivo" : "bg-alerta-claro text-alerta"
-            }`}
-          >
-            {aviso.texto}
-          </p>
-        )}
+        {aviso && <Mensagem {...aviso} />}
         <div className="flex justify-end">
           <Botao variante="primario" onClick={() => void salvar()} disabled={gravando}>
             {gravando ? "Salvando…" : "Salvar"}
@@ -78,4 +88,133 @@ function DadosEmpresa({ inicial }: { inicial: Empresa }) {
       </div>
     </Cartao>
   );
+}
+
+/** So existe no programa instalado: no navegador, quem escolhe e a janela de impressao. */
+function Impressora() {
+  const [lista, setLista] = useState<{ nomes: string[]; escolhida: string | null } | null>(null);
+  const programa = eletron();
+
+  useEffect(() => {
+    void programa?.impressoras().then(setLista);
+  }, [programa]);
+
+  if (!programa || !lista) return null;
+
+  async function escolher(nome: string) {
+    await programa?.definirImpressora(nome || null);
+    setLista((l) => (l ? { ...l, escolhida: nome || null } : l));
+  }
+
+  return (
+    <Cartao>
+      <TituloCartao>Impressora de recibos</TituloCartao>
+      <div className="mt-3 flex flex-col gap-3">
+        <Campo
+          rotulo="Imprimir recibo sai direto em"
+          dica="Sem impressora escolhida, o sistema procura uma Elgin i9. Se não achar, abre a janela de impressão."
+        >
+          <Selecao value={lista.escolhida ?? ""} onChange={(e) => void escolher(e.target.value)}>
+            <option value="">Escolher sozinho</option>
+            {lista.nomes.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </Selecao>
+        </Campo>
+        {lista.nomes.length === 0 && (
+          <p className="flex items-center gap-2 text-[13px] text-suave">
+            <Printer size={15} /> Nenhuma impressora instalada neste computador.
+          </p>
+        )}
+      </div>
+    </Cartao>
+  );
+}
+
+function Backup() {
+  type Situacao = { pasta: string; ultimoEm: string | null; quantidade: number };
+  const [situacao, setSituacao] = useState<Situacao | null>(null);
+  const [aviso, setAviso] = useState<{ tom: "ok" | "erro"; texto: string } | null>(null);
+  const [fazendo, setFazendo] = useState(false);
+  const programa = eletron();
+
+  useEffect(() => {
+    void lerSituacaoBackup()
+      .then((r) => r.ok && setSituacao(r.valor))
+      .catch(() => {});
+  }, []);
+
+  if (!situacao?.pasta) return null;
+
+  async function agora() {
+    setFazendo(true);
+    setAviso(null);
+    const r = await fazerBackupAgora().catch(() => null);
+    setFazendo(false);
+    if (r?.ok) {
+      setSituacao(r.valor);
+      setAviso({ tom: "ok", texto: "Backup feito e conferido." });
+    } else {
+      setAviso({ tom: "erro", texto: r ? r.erro : "Não foi possível fazer o backup." });
+    }
+  }
+
+  async function restaurar() {
+    setAviso(null);
+    const r = await programa?.restaurarBackup();
+    if (r && !r.ok && r.erro) setAviso({ tom: "erro", texto: r.erro });
+  }
+
+  return (
+    <Cartao>
+      <TituloCartao>Backup</TituloCartao>
+      <div className="mt-3 flex flex-col gap-3">
+        <p className="text-[13px] leading-relaxed text-tinta2">
+          O sistema faz uma cópia por dia e guarda as últimas 30.{" "}
+          {situacao.ultimoEm ? (
+            <>
+              A última foi em <b>{dataHora(situacao.ultimoEm)}</b>.
+            </>
+          ) : (
+            <b>Ainda não há nenhuma cópia.</b>
+          )}
+        </p>
+        <p className="mono break-all text-[12px] text-suave">{situacao.pasta}</p>
+        <Aviso tom="casco" titulo="Guarde uma cópia fora do computador">
+          Se o disco queimar ou o computador for roubado, a cópia que está nele vai junto.
+          Uma vez por semana, passe o arquivo mais recente para um pen drive.
+        </Aviso>
+        {aviso && <Mensagem {...aviso} />}
+        <div className="flex flex-wrap justify-end gap-2">
+          {programa && (
+            <>
+              <Botao onClick={() => void restaurar()}>
+                <History size={15} /> Restaurar um backup
+              </Botao>
+              <Botao onClick={() => void programa.abrirPastaBackups()}>
+                <FolderOpen size={15} /> Abrir a pasta
+              </Botao>
+            </>
+          )}
+          <Botao variante="primario" onClick={() => void agora()} disabled={fazendo}>
+            <DatabaseBackup size={15} /> {fazendo ? "Fazendo…" : "Fazer backup agora"}
+          </Botao>
+        </div>
+      </div>
+    </Cartao>
+  );
+}
+
+function Versao() {
+  const [versao, setVersao] = useState<string | null>(null);
+  const programa = eletron();
+
+  useEffect(() => {
+    void programa?.versao().then(setVersao);
+  }, [programa]);
+
+  if (!versao) return null;
+  return <p className="text-[12px] text-suave">Versão {versao}. As atualizações chegam sozinhas quando houver internet.</p>;
 }

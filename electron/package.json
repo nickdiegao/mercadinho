@@ -1,0 +1,11 @@
+{
+  "name": "mercadinho-instalador",
+  "private": true,
+  "description": "Ferramentas do instalador. Sao instaladas fora do OneDrive por scripts/empacotar.mjs.",
+  "devDependencies": {
+    "electron": "45.2.0",
+    "electron-builder": "26.18.0",
+    "electron-updater": "6.8.11",
+    "esbuild": "0.25.12"
+  }
+}
