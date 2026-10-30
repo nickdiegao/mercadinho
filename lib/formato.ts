@@ -60,7 +60,7 @@ export const diaCurto = (iso: string) =>
 
 /** Valor por extenso, para o recibo. */
 export function porExtenso(centavos: number): string {
-  const un = ["", "um", "dois", "tres", "quatro", "cinco", "seis", "sete", "oito", "nove"];
+  const un = ["", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove"];
   const dez = ["dez", "onze", "doze", "treze", "quatorze", "quinze", "dezesseis", "dezessete", "dezoito", "dezenove"];
   const dezenas = ["", "", "vinte", "trinta", "quarenta", "cinquenta", "sessenta", "setenta", "oitenta", "noventa"];
   const centenas = ["", "cento", "duzentos", "trezentos", "quatrocentos", "quinhentos", "seiscentos", "setecentos", "oitocentos", "novecentos"];

@@ -124,6 +124,46 @@ body {
   display: none;
 }
 
+/* ------------------------------------------- recibo de bobina (80 mm) */
+.recibo-bobina {
+  display: none;
+}
+
+/* html.bobina dura so a impressao; fora da tela da para medir a altura */
+html.bobina .recibo-bobina {
+  display: block;
+  position: absolute;
+  top: 0;
+  left: -100vw;
+  width: 72mm;
+  padding-bottom: 6mm;
+  background: #fff;
+  color: #000;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 12.5px;
+  line-height: 1.32;
+  font-variant-numeric: tabular-nums;
+}
+
+.recibo-bloco {
+  margin-top: 6px;
+  border-top: 1px dashed #000;
+  padding-top: 6px;
+}
+
+@media print {
+  html.bobina body > :not(.recibo-bobina) {
+    display: none !important;
+  }
+  html.bobina body {
+    margin: 0;
+  }
+  html.bobina .recibo-bobina {
+    position: static;
+    margin: 0 auto;
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .transicao {
     transition:
