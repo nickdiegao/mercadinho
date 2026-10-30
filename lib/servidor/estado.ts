@@ -1,17 +1,19 @@
 /**
- * Traducao entre o Postgres e o Estado que as telas usam.
+ * Traducao entre o SQLite e o Estado que as telas usam.
  *
  *   lerEstado      monta o Estado inteiro a partir das tabelas
  *   gravarEfeitos  grava o que uma operacao produziu (lib/operacoes.ts)
- *   semear         recomeca o banco com um Estado (demonstracao ou vazio)
+ *   semear         carrega um Estado no banco novo (demonstracao ou vazio)
  *
  * Ler o Estado inteiro serve bem a uma loja so, com alguns milhares de
  * linhas. Quando o historico crescer, o caminho e paginar vendas e
  * movimentos — as telas ja pedem dados por lista, entao a troca fica aqui.
+ *
+ * O driver do SQLite e sincrono, e por isso nada aqui usa await: dentro de uma
+ * transacao, nenhuma outra requisicao entra no meio.
  */
 
-import { asc, desc, eq, sql } from "drizzle-orm";
-import { hash } from "bcryptjs";
+import { asc, desc, eq } from "drizzle-orm";
 import type { Efeitos } from "../operacoes";
 import type {
   CaixaMovimento,
@@ -33,11 +35,6 @@ import * as t from "./schema";
 
 // ---------------------------------------------------------------- apoio
 
-/** "2026-10-08 22:39:00.123+00" (Postgres) -> ISO, que e o que as telas usam. */
-export const iso = (s: string) =>
-  new Date(s.replace(" ", "T").replace(/([+-]\d\d)$/, "$1:00")).toISOString();
-const isoOuNada = (s: string | null) => (s ? iso(s) : undefined);
-
 /** Campo nulo no banco e campo ausente no dominio. */
 function semNulos<T extends object>(o: T): { [K in keyof T]: Exclude<T[K], null> } {
   const r = {} as Record<string, unknown>;
@@ -52,54 +49,37 @@ function nulosNoLugar<T extends object>(o: T): T {
   return r as T;
 }
 
-/** Insere em lotes: o Postgres aceita no maximo 65 mil parametros por comando. */
-async function inserirEmLotes<R>(db: Conexao, tabela: Parameters<Conexao["insert"]>[0], linhas: R[]) {
+/** Insere em lotes: o SQLite aceita no maximo 32 mil parametros por comando. */
+function inserirEmLotes<R>(db: Conexao, tabela: Parameters<Conexao["insert"]>[0], linhas: R[]) {
   for (let i = 0; i < linhas.length; i += 400) {
-    await db.insert(tabela).values(linhas.slice(i, i + 400) as never);
+    db.insert(tabela).values(linhas.slice(i, i + 400) as never).run();
   }
 }
 
 // ================================================================ leitura
 
-export async function lerEstado(db: Conexao): Promise<Estado> {
-  const [
-    [emp],
-    usuarios,
-    categorias,
-    fornecedores,
-    clientes,
-    produtos,
-    entradas,
-    entradaItens,
-    vendas,
-    vendaItens,
-    movimentos,
-    caixaSessoes,
-    caixaMovimentos,
-    documentos,
-    logs,
-  ] = await Promise.all([
-    db.select().from(t.empresa).limit(1),
-    // a senha nunca sai do banco: o hash nao entra na leitura
-    db
-      .select({ id: t.usuarios.id, nome: t.usuarios.nome, email: t.usuarios.email, perfil: t.usuarios.perfil, ativo: t.usuarios.ativo })
-      .from(t.usuarios)
-      .orderBy(asc(t.usuarios.id)),
-    db.select({ id: t.categorias.id, nome: t.categorias.nome }).from(t.categorias).orderBy(asc(t.categorias.id)),
-    db.select().from(t.fornecedores).orderBy(asc(t.fornecedores.id)),
-    db.select().from(t.clientes).orderBy(asc(t.clientes.id)),
-    db.select().from(t.produtos).orderBy(asc(t.produtos.sku)),
-    db.select().from(t.entradas).orderBy(desc(t.entradas.data), desc(t.entradas.numero)),
-    db.select().from(t.entradaItens).orderBy(asc(t.entradaItens.entradaId), asc(t.entradaItens.posicao)),
-    db.select().from(t.vendas).orderBy(desc(t.vendas.data), desc(t.vendas.numero)),
-    db.select().from(t.vendaItens).orderBy(asc(t.vendaItens.vendaId), asc(t.vendaItens.posicao)),
-    db.select().from(t.movimentosEstoque).orderBy(asc(t.movimentosEstoque.ordem)),
-    db.select().from(t.caixaSessoes).orderBy(asc(t.caixaSessoes.abertaEm)),
-    db.select().from(t.caixaMovimentos).orderBy(asc(t.caixaMovimentos.ordem)),
-    db.select().from(t.documentos).orderBy(asc(t.documentos.numero)),
-    // a tela mostra os ultimos 300; o banco guarda todos
-    db.select().from(t.logAuditoria).orderBy(desc(t.logAuditoria.ordem)).limit(300),
-  ]);
+export function lerEstado(db: Conexao): Estado {
+  const emp = db.select().from(t.empresa).limit(1).get();
+  // a senha nunca sai do banco: o hash nao entra na leitura
+  const usuarios = db
+    .select({ id: t.usuarios.id, nome: t.usuarios.nome, email: t.usuarios.email, perfil: t.usuarios.perfil, ativo: t.usuarios.ativo })
+    .from(t.usuarios)
+    .orderBy(asc(t.usuarios.id))
+    .all();
+  const categorias = db.select({ id: t.categorias.id, nome: t.categorias.nome }).from(t.categorias).orderBy(asc(t.categorias.id)).all();
+  const fornecedores = db.select().from(t.fornecedores).orderBy(asc(t.fornecedores.id)).all();
+  const clientes = db.select().from(t.clientes).orderBy(asc(t.clientes.id)).all();
+  const produtos = db.select().from(t.produtos).orderBy(asc(t.produtos.sku)).all();
+  const entradas = db.select().from(t.entradas).orderBy(desc(t.entradas.data), desc(t.entradas.numero)).all();
+  const entradaItens = db.select().from(t.entradaItens).orderBy(asc(t.entradaItens.entradaId), asc(t.entradaItens.posicao)).all();
+  const vendas = db.select().from(t.vendas).orderBy(desc(t.vendas.data), desc(t.vendas.numero)).all();
+  const vendaItens = db.select().from(t.vendaItens).orderBy(asc(t.vendaItens.vendaId), asc(t.vendaItens.posicao)).all();
+  const movimentos = db.select().from(t.movimentosEstoque).orderBy(asc(t.movimentosEstoque.ordem)).all();
+  const caixaSessoes = db.select().from(t.caixaSessoes).orderBy(asc(t.caixaSessoes.abertaEm)).all();
+  const caixaMovimentos = db.select().from(t.caixaMovimentos).orderBy(asc(t.caixaMovimentos.ordem)).all();
+  const documentos = db.select().from(t.documentos).orderBy(asc(t.documentos.numero)).all();
+  // a tela mostra os ultimos 300; o banco guarda todos
+  const logs = db.select().from(t.logAuditoria).orderBy(desc(t.logAuditoria.ordem)).limit(300).all();
 
   if (!emp) throw new Error("O banco está vazio: rode npm run banco:preparar.");
 
@@ -132,30 +112,14 @@ export async function lerEstado(db: Conexao): Promise<Estado> {
     usuarios,
     usuarioAtualId: null,
     categorias,
-    fornecedores,
+    fornecedores: fornecedores as Fornecedor[],
     clientes: clientes.map((c) => semNulos(c) as Cliente),
     produtos: produtos.map(({ cest: _c, cfop: _f, origem: _o, ...p }) => semNulos(p) as Produto),
-    entradas: entradas.map(
-      (e) => ({ ...semNulos(e), data: iso(e.data), itens: itensDaEntrada.get(e.id) ?? [] }) as Entrada,
-    ),
-    vendas: vendas.map(
-      (v) =>
-        ({
-          ...semNulos(v),
-          data: iso(v.data),
-          canceladaEm: isoOuNada(v.canceladaEm),
-          itens: itensDaVenda.get(v.id) ?? [],
-        }) as Venda,
-    ),
-    movimentos: movimentos.map(
-      ({ ordem: _o, ...m }) => ({ ...semNulos(m), data: iso(m.data) }) as MovimentoEstoque,
-    ),
-    caixaSessoes: caixaSessoes.map(
-      (c) => ({ ...semNulos(c), abertaEm: iso(c.abertaEm), fechadaEm: isoOuNada(c.fechadaEm) }) as CaixaSessao,
-    ),
-    caixaMovimentos: caixaMovimentos.map(
-      ({ ordem: _o, ...m }) => ({ ...semNulos(m), data: iso(m.data) }) as CaixaMovimento,
-    ),
+    entradas: entradas.map((e) => ({ ...semNulos(e), itens: itensDaEntrada.get(e.id) ?? [] }) as Entrada),
+    vendas: vendas.map((v) => ({ ...semNulos(v), itens: itensDaVenda.get(v.id) ?? [] }) as Venda),
+    movimentos: movimentos.map(({ ordem: _o, ...m }) => semNulos(m) as MovimentoEstoque),
+    caixaSessoes: caixaSessoes.map((c) => semNulos(c) as CaixaSessao),
+    caixaMovimentos: caixaMovimentos.map(({ ordem: _o, ...m }) => semNulos(m) as CaixaMovimento),
     documentos: documentos.map(
       (d) =>
         ({
@@ -163,7 +127,7 @@ export async function lerEstado(db: Conexao): Promise<Estado> {
           vendaId: d.vendaId,
           tipo: d.tipo,
           numero: d.numero,
-          emitidoEm: iso(d.emitidoEm),
+          emitidoEm: d.emitidoEm,
           emitenteSnapshot: d.emitenteSnapshot,
           destinatarioSnapshot: d.destinatarioSnapshot ?? null,
         }) as Documento,
@@ -171,7 +135,7 @@ export async function lerEstado(db: Conexao): Promise<Estado> {
     logs: logs.map(
       (l): LogAuditoria => ({
         id: l.id,
-        ocorridoEm: iso(l.ocorridoEm),
+        ocorridoEm: l.ocorridoEm,
         usuarioId: l.usuarioId ?? "",
         acao: l.acao,
         entidade: l.entidade,
@@ -212,56 +176,56 @@ const linhasItensEntrada = (e: Entrada) =>
  * A ordem respeita as chaves estrangeiras: cadastro, depois alteracoes,
  * depois o que aponta para eles.
  */
-export async function gravarEfeitos(db: Conexao, ef: Efeitos) {
+export function gravarEfeitos(db: Conexao, ef: Efeitos) {
   const { inserir: ins, atualizar: alt } = ef;
 
   // casco antes do produto que aponta para ele
   const produtos = [...(ins.produtos ?? [])].sort(
     (a, b) => Number(b.tipo === "VASILHAME") - Number(a.tipo === "VASILHAME"),
   );
-  if (produtos.length) await inserirEmLotes(db, t.produtos, produtos.map(linhaProduto));
-  if (ins.clientes?.length) await inserirEmLotes(db, t.clientes, ins.clientes.map((c) => nulosNoLugar({ ...c })));
+  if (produtos.length) inserirEmLotes(db, t.produtos, produtos.map(linhaProduto));
+  if (ins.clientes?.length) inserirEmLotes(db, t.clientes, ins.clientes.map((c) => nulosNoLugar({ ...c })));
   if (ins.fornecedores?.length)
-    await inserirEmLotes(db, t.fornecedores, ins.fornecedores.map((f) => ({ ...f, ativo: f.ativo !== false })));
+    inserirEmLotes(db, t.fornecedores, ins.fornecedores.map((f) => ({ ...f, ativo: f.ativo !== false })));
   if (ins.caixaSessoes?.length)
-    await inserirEmLotes(db, t.caixaSessoes, ins.caixaSessoes.map((c) => nulosNoLugar({ ...c })));
+    inserirEmLotes(db, t.caixaSessoes, ins.caixaSessoes.map((c) => nulosNoLugar({ ...c })));
 
   for (const p of alt.produtos ?? []) {
     const { id, ...campos } = nulosNoLugar(p);
-    await db.update(t.produtos).set(campos).where(eq(t.produtos.id, id));
+    db.update(t.produtos).set(campos).where(eq(t.produtos.id, id)).run();
   }
   for (const c of alt.clientes ?? []) {
     const { id, ...campos } = nulosNoLugar(c);
-    await db.update(t.clientes).set(campos).where(eq(t.clientes.id, id));
+    db.update(t.clientes).set(campos).where(eq(t.clientes.id, id)).run();
   }
   for (const f of alt.fornecedores ?? []) {
     const { id, ...campos } = nulosNoLugar(f);
-    await db.update(t.fornecedores).set(campos).where(eq(t.fornecedores.id, id));
+    db.update(t.fornecedores).set(campos).where(eq(t.fornecedores.id, id)).run();
   }
   for (const v of alt.vendas ?? []) {
     const { id, itens: _i, ...campos } = nulosNoLugar(v);
-    await db.update(t.vendas).set(campos).where(eq(t.vendas.id, id));
+    db.update(t.vendas).set(campos).where(eq(t.vendas.id, id)).run();
   }
   for (const c of alt.caixaSessoes ?? []) {
     const { id, ...campos } = nulosNoLugar(c);
-    await db.update(t.caixaSessoes).set(campos).where(eq(t.caixaSessoes.id, id));
+    db.update(t.caixaSessoes).set(campos).where(eq(t.caixaSessoes.id, id)).run();
   }
 
   if (ins.vendas?.length) {
-    await inserirEmLotes(db, t.vendas, ins.vendas.map(linhaVenda));
-    await inserirEmLotes(db, t.vendaItens, ins.vendas.flatMap(linhasItensVenda));
+    inserirEmLotes(db, t.vendas, ins.vendas.map(linhaVenda));
+    inserirEmLotes(db, t.vendaItens, ins.vendas.flatMap(linhasItensVenda));
   }
   if (ins.entradas?.length) {
-    await inserirEmLotes(db, t.entradas, ins.entradas.map(linhaEntrada));
-    await inserirEmLotes(db, t.entradaItens, ins.entradas.flatMap(linhasItensEntrada));
+    inserirEmLotes(db, t.entradas, ins.entradas.map(linhaEntrada));
+    inserirEmLotes(db, t.entradaItens, ins.entradas.flatMap(linhasItensEntrada));
   }
-  if (ins.documentos?.length) await inserirEmLotes(db, t.documentos, ins.documentos);
+  if (ins.documentos?.length) inserirEmLotes(db, t.documentos, ins.documentos);
   if (ins.caixaMovimentos?.length)
-    await inserirEmLotes(db, t.caixaMovimentos, ins.caixaMovimentos.map((m) => nulosNoLugar({ ...m })));
+    inserirEmLotes(db, t.caixaMovimentos, ins.caixaMovimentos.map((m) => nulosNoLugar({ ...m })));
   if (ins.movimentos?.length)
-    await inserirEmLotes(db, t.movimentosEstoque, ins.movimentos.map((m) => nulosNoLugar({ ...m })));
+    inserirEmLotes(db, t.movimentosEstoque, ins.movimentos.map((m) => nulosNoLugar({ ...m })));
   if (ins.logs?.length)
-    await inserirEmLotes(
+    inserirEmLotes(
       db,
       t.logAuditoria,
       ins.logs.map((l) => ({ ...l, usuarioId: l.usuarioId || null })),
@@ -271,27 +235,17 @@ export async function gravarEfeitos(db: Conexao, ef: Efeitos) {
 // ================================================================ semente
 
 /**
- * Recomeca o banco com um Estado: o da demonstracao (npm run banco:semear) ou
- * o vazio, pronto para os dados reais (npm run banco:zerar). Os usuarios
- * ganham a senha inicial, com hash bcrypt de custo 12.
+ * Carrega um Estado no banco novo: o da demonstracao (npm run banco:semear) ou
+ * o vazio, pronto para os dados reais (npm run banco:zerar). Quem chama ja
+ * apagou o arquivo: os gatilhos de so-insercao nao deixariam limpar por DELETE.
  */
-export async function semear(db: Conexao, estado: Estado, senhaInicial: string) {
-  if (senhaInicial.length < 8) throw new Error("SENHA_INICIAL precisa de pelo menos 8 caracteres.");
-
-  await db.execute(sql`
-    TRUNCATE log_auditoria, movimentos_estoque, caixa_movimentos, documentos,
-      venda_itens, vendas, entrada_itens, entradas, caixa_sessoes,
-      produtos, clientes, fornecedores, categorias, usuarios, empresa
-    RESTART IDENTITY CASCADE
-  `);
-
-  const senhaHash = await hash(senhaInicial, 12);
-  await db.insert(t.empresa).values({ id: 1, ...estado.empresa });
-  await db.insert(t.usuarios).values(estado.usuarios.map((u) => ({ ...u, senhaHash })));
-  await db.insert(t.categorias).values(estado.categorias);
+export function semear(db: Conexao, estado: Estado, senhaHash: string) {
+  db.insert(t.empresa).values({ id: 1, ...estado.empresa }).run();
+  db.insert(t.usuarios).values(estado.usuarios.map((u) => ({ ...u, senhaHash }))).run();
+  db.insert(t.categorias).values(estado.categorias).run();
 
   // movimentos do seed ja vem em ordem de data: a coluna "ordem" segue igual
-  await gravarEfeitos(db, {
+  gravarEfeitos(db, {
     inserir: {
       fornecedores: estado.fornecedores,
       clientes: estado.clientes,

@@ -1,5 +1,5 @@
 /**
- * As quinze tabelas do blueprint, no Postgres.
+ * As quinze tabelas do blueprint, no SQLite.
  *
  * Os nomes em JavaScript sao os mesmos do dominio (lib/tipos.ts), para a
  * leitura virar objeto do sistema sem traducao campo a campo. No banco, as
@@ -8,69 +8,65 @@
  * Unidades, iguais as do mockup:
  *   dinheiro     integer em centavos
  *   custo medio  integer em 1/10000 de real
- *   quantidade   numeric(12,3), em unidade base
+ *   quantidade   integer em milesimos no banco, numero normal no sistema
+ *   momento      texto ISO 8601 em UTC, sempre com toISOString()
  *
  * As constraints sao a ultima linha de defesa: mesmo com bug na aplicacao,
- * o banco recusa preco negativo, quantidade zero e dois caixas abertos.
+ * o banco recusa preco negativo, quantidade zero e dois caixas abertos. As
+ * tabelas sao STRICT (ver drizzle/0000): sem isso o SQLite aceitaria texto
+ * em coluna de numero. Migration nova que criar tabela precisa do STRICT a mao.
  */
 
 import { sql } from "drizzle-orm";
 import {
-  bigint,
-  boolean,
   check,
+  customType,
   index,
   integer,
-  jsonb,
-  numeric,
-  pgEnum,
-  pgTable,
+  sqliteTable,
   text,
-  timestamp,
   uniqueIndex,
-  type AnyPgColumn,
-} from "drizzle-orm/pg-core";
+  type AnySQLiteColumn,
+  type SQLiteColumn,
+} from "drizzle-orm/sqlite-core";
 import type { Cliente, Empresa } from "../tipos";
 
 // ---------------------------------------------------------------- tipos
 
-const quantidade = (nome: string) => numeric(nome, { precision: 12, scale: 3, mode: "number" });
-const momento = (nome: string) => timestamp(nome, { withTimezone: true, mode: "string" });
-/** Ordem de gravacao: dois movimentos no mesmo milissegundo saem na ordem certa. */
-const ordem = () => bigint("ordem", { mode: "number" }).generatedAlwaysAsIdentity();
+/** Em milesimos: inteiro nao acumula erro de arredondamento a cada soma. */
+const quantidade = customType<{ data: number; driverData: number }>({
+  dataType: () => "integer",
+  toDriver: (v) => Math.round(v * 1000),
+  fromDriver: (v) => v / 1000,
+});
+const momento = (nome: string) => text(nome);
+const sim = (nome: string) => integer(nome, { mode: "boolean" });
 
-export const perfil = pgEnum("perfil", ["ADMIN", "CAIXA", "ESTOQUE"]);
-export const tipoPreco = pgEnum("tipo_preco", ["VAREJO", "ATACADO"]);
-export const tipoProduto = pgEnum("tipo_produto", ["NORMAL", "VASILHAME"]);
-export const unidadeBase = pgEnum("unidade_base", ["UN", "L"]);
-export const unidadeCompra = pgEnum("unidade_compra", ["UN", "CX", "FD", "ENG", "BARRIL"]);
-export const tipoMovimento = pgEnum("tipo_movimento", [
-  "ENTRADA",
-  "SAIDA",
-  "AJUSTE",
-  "PERDA",
-  "DEVOLUCAO",
-  "INVENTARIO_INICIAL",
-]);
-export const origemMovimento = pgEnum("origem_movimento", ["ENTRADA", "VENDA", "AJUSTE", "CARGA_INICIAL"]);
-export const formaPagamento = pgEnum("forma_pagamento", ["DINHEIRO", "PIX", "DEBITO", "CREDITO", "FIADO"]);
-export const tipoCaixaMov = pgEnum("tipo_caixa_mov", [
-  "VENDA",
-  "SANGRIA",
-  "SUPRIMENTO",
-  "DESPESA",
-  "RECEBIMENTO",
-  "ESTORNO",
-]);
-export const statusVenda = pgEnum("status_venda", ["FECHADA", "CANCELADA"]);
-export const statusCaixa = pgEnum("status_caixa", ["ABERTA", "FECHADA"]);
-export const tipoDocumento = pgEnum("tipo_documento", ["RECIBO", "PEDIDO", "NFE", "NFCE"]);
-export const tipoCliente = pgEnum("tipo_cliente", ["PF", "PJ"]);
+/** Ordem de gravacao: dois movimentos no mesmo milissegundo saem na ordem certa. */
+const ordem = () => integer("ordem").primaryKey({ autoIncrement: true });
+
+/** O SQLite nao tem enum: a lista de valores validos vira CHECK. */
+const umDe = (nome: string, coluna: SQLiteColumn, valores: readonly string[]) =>
+  check(nome, sql`${coluna} in ${sql.raw(`(${valores.map((v) => `'${v}'`).join(", ")})`)}`);
+
+const PERFIS = ["ADMIN", "CAIXA", "ESTOQUE"] as const;
+const TIPOS_PRECO = ["VAREJO", "ATACADO"] as const;
+const TIPOS_PRODUTO = ["NORMAL", "VASILHAME"] as const;
+const UNIDADES_BASE = ["UN", "L"] as const;
+const UNIDADES_COMPRA = ["UN", "CX", "FD", "ENG", "BARRIL"] as const;
+const TIPOS_MOVIMENTO = ["ENTRADA", "SAIDA", "AJUSTE", "PERDA", "DEVOLUCAO", "INVENTARIO_INICIAL"] as const;
+const ORIGENS_MOVIMENTO = ["ENTRADA", "VENDA", "AJUSTE", "CARGA_INICIAL"] as const;
+const FORMAS_PAGAMENTO = ["DINHEIRO", "PIX", "DEBITO", "CREDITO", "FIADO"] as const;
+const TIPOS_CAIXA_MOV = ["VENDA", "SANGRIA", "SUPRIMENTO", "DESPESA", "RECEBIMENTO", "ESTORNO"] as const;
+const STATUS_VENDA = ["FECHADA", "CANCELADA"] as const;
+const STATUS_CAIXA = ["ABERTA", "FECHADA"] as const;
+const TIPOS_DOCUMENTO = ["RECIBO", "PEDIDO", "NFE", "NFCE"] as const;
+const TIPOS_CLIENTE = ["PF", "PJ"] as const;
 
 // ---------------------------------------------------------------- cadastro
 
 /** Emitente. Uma linha so — o id e sempre 1. */
-export const empresa = pgTable(
+export const empresa = sqliteTable(
   "empresa",
   {
     id: integer("id").primaryKey().default(1),
@@ -86,7 +82,7 @@ export const empresa = pgTable(
   (t) => [check("empresa_uma_so", sql`${t.id} = 1`)],
 );
 
-export const usuarios = pgTable(
+export const usuarios = sqliteTable(
   "usuarios",
   {
     id: text("id").primaryKey(),
@@ -94,50 +90,57 @@ export const usuarios = pgTable(
     email: text("email").notNull(),
     /** Nunca a senha: so o hash bcrypt. */
     senhaHash: text("senha_hash").notNull(),
-    perfil: perfil("perfil").notNull(),
-    ativo: boolean("ativo").notNull().default(true),
+    perfil: text("perfil", { enum: PERFIS }).notNull(),
+    ativo: sim("ativo").notNull().default(true),
     /** 5 erros seguidos travam o login por 15 minutos. */
     tentativasFalhas: integer("tentativas_falhas").notNull().default(0),
     bloqueadoAte: momento("bloqueado_ate"),
   },
-  (t) => [uniqueIndex("usuarios_email_unico").on(sql`lower(${t.email})`)],
+  (t) => [
+    uniqueIndex("usuarios_email_unico").on(sql`lower(${t.email})`),
+    umDe("usuarios_perfil_valido", t.perfil, PERFIS),
+  ],
 );
 
-export const categorias = pgTable("categorias", {
+export const categorias = sqliteTable("categorias", {
   id: text("id").primaryKey(),
   nome: text("nome").notNull(),
-  categoriaPaiId: text("categoria_pai_id").references((): AnyPgColumn => categorias.id),
+  categoriaPaiId: text("categoria_pai_id").references((): AnySQLiteColumn => categorias.id),
 });
 
-export const fornecedores = pgTable("fornecedores", {
+export const fornecedores = sqliteTable("fornecedores", {
   id: text("id").primaryKey(),
   razaoSocial: text("razao_social").notNull(),
   cnpj: text("cnpj").notNull(),
   telefone: text("telefone").notNull().default(""),
   email: text("email").notNull().default(""),
   endereco: text("endereco").notNull().default(""),
-  ativo: boolean("ativo").notNull().default(true),
+  ativo: sim("ativo").notNull().default(true),
 });
 
-export const clientes = pgTable(
+export const clientes = sqliteTable(
   "clientes",
   {
     id: text("id").primaryKey(),
-    tipo: tipoCliente("tipo").notNull(),
+    tipo: text("tipo", { enum: TIPOS_CLIENTE }).notNull(),
     nomeRazao: text("nome_razao").notNull(),
     cpfCnpj: text("cpf_cnpj").notNull().default(""),
     inscricaoEstadual: text("inscricao_estadual"),
     telefone: text("telefone").notNull().default(""),
     email: text("email"),
     endereco: text("endereco").notNull().default(""),
-    tipoPreco: tipoPreco("tipo_preco").notNull().default("VAREJO"),
+    tipoPreco: text("tipo_preco", { enum: TIPOS_PRECO }).notNull().default("VAREJO"),
     limiteCredito: integer("limite_credito").notNull().default(0),
-    ativo: boolean("ativo").notNull().default(true),
+    ativo: sim("ativo").notNull().default(true),
   },
-  (t) => [check("clientes_limite_positivo", sql`${t.limiteCredito} >= 0`)],
+  (t) => [
+    check("clientes_limite_positivo", sql`${t.limiteCredito} >= 0`),
+    umDe("clientes_tipo_valido", t.tipo, TIPOS_CLIENTE),
+    umDe("clientes_tipo_preco_valido", t.tipoPreco, TIPOS_PRECO),
+  ],
 );
 
-export const produtos = pgTable(
+export const produtos = sqliteTable(
   "produtos",
   {
     id: text("id").primaryKey(),
@@ -147,17 +150,17 @@ export const produtos = pgTable(
     categoriaId: text("categoria_id")
       .notNull()
       .references(() => categorias.id),
-    tipo: tipoProduto("tipo").notNull().default("NORMAL"),
-    vasilhameId: text("vasilhame_id").references((): AnyPgColumn => produtos.id),
-    unidadeBase: unidadeBase("unidade_base").notNull().default("UN"),
-    unidadeCompra: unidadeCompra("unidade_compra").notNull(),
+    tipo: text("tipo", { enum: TIPOS_PRODUTO }).notNull().default("NORMAL"),
+    vasilhameId: text("vasilhame_id").references((): AnySQLiteColumn => produtos.id),
+    unidadeBase: text("unidade_base", { enum: UNIDADES_BASE }).notNull().default("UN"),
+    unidadeCompra: text("unidade_compra", { enum: UNIDADES_COMPRA }).notNull(),
     fatorConversao: integer("fator_conversao").notNull(),
     custoMedio: integer("custo_medio").notNull().default(0),
     custoUltimaCompra: integer("custo_ultima_compra").notNull().default(0),
     precoVarejo: integer("preco_varejo").notNull().default(0),
     precoAtacado: integer("preco_atacado").notNull().default(0),
     precoGelado: integer("preco_gelado"),
-    vendeGelado: boolean("vende_gelado"),
+    vendeGelado: sim("vende_gelado"),
     qtdMinimaAtacado: quantidade("qtd_minima_atacado").notNull(),
     estoqueMinimo: quantidade("estoque_minimo").notNull().default(0),
     /** Cache: a verdade e a soma dos movimentos. */
@@ -167,13 +170,16 @@ export const produtos = pgTable(
     cest: text("cest"),
     cfop: text("cfop"),
     origem: text("origem"),
-    ativo: boolean("ativo").notNull().default(true),
+    ativo: sim("ativo").notNull().default(true),
   },
   (t) => [
     check("produtos_precos_positivos", sql`${t.precoVarejo} >= 0 and ${t.precoAtacado} >= 0`),
     check("produtos_gelado_positivo", sql`${t.precoGelado} is null or ${t.precoGelado} > 0`),
     check("produtos_fator_minimo", sql`${t.fatorConversao} >= 1`),
     check("produtos_custo_positivo", sql`${t.custoMedio} >= 0 and ${t.custoUltimaCompra} >= 0`),
+    umDe("produtos_tipo_valido", t.tipo, TIPOS_PRODUTO),
+    umDe("produtos_unidade_base_valida", t.unidadeBase, UNIDADES_BASE),
+    umDe("produtos_unidade_compra_valida", t.unidadeCompra, UNIDADES_COMPRA),
     uniqueIndex("produtos_codigo_barras_unico")
       .on(t.codigoBarras)
       .where(sql`${t.codigoBarras} <> ''`),
@@ -182,7 +188,7 @@ export const produtos = pgTable(
 
 // ---------------------------------------------------------------- entrada
 
-export const entradas = pgTable("entradas", {
+export const entradas = sqliteTable("entradas", {
   id: text("id").primaryKey(),
   numero: integer("numero").notNull().unique(),
   fornecedorId: text("fornecedor_id")
@@ -197,7 +203,7 @@ export const entradas = pgTable("entradas", {
   observacao: text("observacao"),
 });
 
-export const entradaItens = pgTable(
+export const entradaItens = sqliteTable(
   "entrada_itens",
   {
     id: text("id").primaryKey(),
@@ -210,7 +216,7 @@ export const entradaItens = pgTable(
       .notNull()
       .references(() => produtos.id),
     qtdCompra: quantidade("qtd_compra").notNull(),
-    unidadeCompra: unidadeCompra("unidade_compra").notNull(),
+    unidadeCompra: text("unidade_compra", { enum: UNIDADES_COMPRA }).notNull(),
     fatorConversao: integer("fator_conversao").notNull(),
     qtdBase: quantidade("qtd_base").notNull(),
     custoUnitCompra: integer("custo_unit_compra").notNull(),
@@ -221,12 +227,13 @@ export const entradaItens = pgTable(
     index("entrada_itens_entrada").on(t.entradaId),
     check("entrada_itens_qtd_positiva", sql`${t.qtdCompra} > 0`),
     check("entrada_itens_custo_positivo", sql`${t.custoUnitCompra} > 0`),
+    umDe("entrada_itens_unidade_valida", t.unidadeCompra, UNIDADES_COMPRA),
   ],
 );
 
 // ---------------------------------------------------------------- caixa
 
-export const caixaSessoes = pgTable(
+export const caixaSessoes = sqliteTable(
   "caixa_sessoes",
   {
     id: text("id").primaryKey(),
@@ -237,10 +244,11 @@ export const caixaSessoes = pgTable(
     fundoTroco: integer("fundo_troco").notNull(),
     fechadaEm: momento("fechada_em"),
     valorContado: integer("valor_contado"),
-    status: statusCaixa("status").notNull(),
+    status: text("status", { enum: STATUS_CAIXA }).notNull(),
   },
   (t) => [
     check("caixa_fundo_positivo", sql`${t.fundoTroco} >= 0`),
+    umDe("caixa_status_valido", t.status, STATUS_CAIXA),
     // dois caixas abertos ao mesmo tempo bagunçam a conferencia
     uniqueIndex("caixa_um_aberto").on(t.status).where(sql`${t.status} = 'ABERTA'`),
   ],
@@ -248,7 +256,7 @@ export const caixaSessoes = pgTable(
 
 // ---------------------------------------------------------------- venda
 
-export const vendas = pgTable(
+export const vendas = sqliteTable(
   "vendas",
   {
     id: text("id").primaryKey(),
@@ -259,13 +267,13 @@ export const vendas = pgTable(
       .notNull()
       .references(() => usuarios.id),
     caixaSessaoId: text("caixa_sessao_id").references(() => caixaSessoes.id),
-    tipoPreco: tipoPreco("tipo_preco").notNull(),
+    tipoPreco: text("tipo_preco", { enum: TIPOS_PRECO }).notNull(),
     subtotal: integer("subtotal").notNull(),
     desconto: integer("desconto").notNull().default(0),
     total: integer("total").notNull(),
     custoTotal: integer("custo_total").notNull(),
-    formaPagamento: formaPagamento("forma_pagamento").notNull(),
-    status: statusVenda("status").notNull(),
+    formaPagamento: text("forma_pagamento", { enum: FORMAS_PAGAMENTO }).notNull(),
+    status: text("status", { enum: STATUS_VENDA }).notNull(),
     canceladaEm: momento("cancelada_em"),
     canceladaPor: text("cancelada_por").references(() => usuarios.id),
     motivoCancelamento: text("motivo_cancelamento"),
@@ -275,10 +283,13 @@ export const vendas = pgTable(
   (t) => [
     index("vendas_data").on(t.data),
     check("vendas_valores_positivos", sql`${t.desconto} >= 0 and ${t.total} >= 0`),
+    umDe("vendas_tipo_preco_valido", t.tipoPreco, TIPOS_PRECO),
+    umDe("vendas_forma_valida", t.formaPagamento, FORMAS_PAGAMENTO),
+    umDe("vendas_status_valido", t.status, STATUS_VENDA),
   ],
 );
 
-export const vendaItens = pgTable(
+export const vendaItens = sqliteTable(
   "venda_itens",
   {
     id: text("id").primaryKey(),
@@ -295,10 +306,10 @@ export const vendaItens = pgTable(
     precoUnit: integer("preco_unit").notNull(),
     /** Custo medio congelado no instante da venda (regra 3). Nunca recalcular. */
     custoUnit: integer("custo_unit").notNull(),
-    tipoPrecoAplicado: tipoPreco("tipo_preco_aplicado").notNull(),
-    embalagemUnidade: unidadeCompra("embalagem_unidade"),
+    tipoPrecoAplicado: text("tipo_preco_aplicado", { enum: TIPOS_PRECO }).notNull(),
+    embalagemUnidade: text("embalagem_unidade", { enum: UNIDADES_COMPRA }),
     embalagemFator: integer("embalagem_fator"),
-    gelado: boolean("gelado").notNull().default(false),
+    gelado: sim("gelado").notNull().default(false),
     adicionalGelado: integer("adicional_gelado"),
     total: integer("total").notNull(),
   },
@@ -306,26 +317,28 @@ export const vendaItens = pgTable(
     index("venda_itens_venda").on(t.vendaId),
     check("venda_itens_qtd_positiva", sql`${t.qtd} > 0`),
     check("venda_itens_preco_positivo", sql`${t.precoUnit} > 0`),
+    umDe("venda_itens_tipo_preco_valido", t.tipoPrecoAplicado, TIPOS_PRECO),
+    umDe("venda_itens_embalagem_valida", t.embalagemUnidade, UNIDADES_COMPRA),
   ],
 );
 
 // ---------------------------------------------------------------- razao
 
 /** Livro-razao do estoque: so insere, nunca altera nem apaga. */
-export const movimentosEstoque = pgTable(
+export const movimentosEstoque = sqliteTable(
   "movimentos_estoque",
   {
-    id: text("id").primaryKey(),
     ordem: ordem(),
+    id: text("id").notNull().unique(),
     produtoId: text("produto_id")
       .notNull()
       .references(() => produtos.id),
     data: momento("data").notNull(),
-    tipo: tipoMovimento("tipo").notNull(),
+    tipo: text("tipo", { enum: TIPOS_MOVIMENTO }).notNull(),
     qtd: quantidade("qtd").notNull(),
     saldoApos: quantidade("saldo_apos").notNull(),
     custoUnitNoMomento: integer("custo_unit_no_momento").notNull(),
-    origemTipo: origemMovimento("origem_tipo").notNull(),
+    origemTipo: text("origem_tipo", { enum: ORIGENS_MOVIMENTO }).notNull(),
     origemId: text("origem_id"),
     usuarioId: text("usuario_id")
       .notNull()
@@ -335,57 +348,67 @@ export const movimentosEstoque = pgTable(
   (t) => [
     index("movimentos_produto").on(t.produtoId),
     check("movimentos_qtd_nao_zero", sql`${t.qtd} <> 0`),
+    umDe("movimentos_tipo_valido", t.tipo, TIPOS_MOVIMENTO),
+    umDe("movimentos_origem_valida", t.origemTipo, ORIGENS_MOVIMENTO),
   ],
 );
 
-export const caixaMovimentos = pgTable(
+export const caixaMovimentos = sqliteTable(
   "caixa_movimentos",
   {
-    id: text("id").primaryKey(),
     ordem: ordem(),
+    id: text("id").notNull().unique(),
     caixaSessaoId: text("caixa_sessao_id")
       .notNull()
       .references(() => caixaSessoes.id),
     data: momento("data").notNull(),
-    tipo: tipoCaixaMov("tipo").notNull(),
-    formaPagamento: formaPagamento("forma_pagamento"),
+    tipo: text("tipo", { enum: TIPOS_CAIXA_MOV }).notNull(),
+    formaPagamento: text("forma_pagamento", { enum: FORMAS_PAGAMENTO }),
     valor: integer("valor").notNull(),
     vendaId: text("venda_id").references(() => vendas.id),
     descricao: text("descricao").notNull(),
   },
-  (t) => [index("caixa_movimentos_sessao").on(t.caixaSessaoId)],
+  (t) => [
+    index("caixa_movimentos_sessao").on(t.caixaSessaoId),
+    umDe("caixa_movimentos_tipo_valido", t.tipo, TIPOS_CAIXA_MOV),
+    umDe("caixa_movimentos_forma_valida", t.formaPagamento, FORMAS_PAGAMENTO),
+  ],
 );
 
 // ---------------------------------------------------------------- documento
 
-export const documentos = pgTable("documentos", {
-  id: text("id").primaryKey(),
-  vendaId: text("venda_id")
-    .notNull()
-    .references(() => vendas.id),
-  tipo: tipoDocumento("tipo").notNull(),
-  numero: integer("numero").notNull().unique(),
-  emitidoEm: momento("emitido_em").notNull(),
-  /** Copia congelada: corrigir o cadastro depois nao muda o recibo emitido. */
-  emitenteSnapshot: jsonb("emitente_snapshot").$type<Empresa>().notNull(),
-  destinatarioSnapshot: jsonb("destinatario_snapshot").$type<Cliente | null>(),
-  // NF-e (fase 3), ja reservado
-  serie: text("serie"),
-  chaveAcesso: text("chave_acesso"),
-  protocolo: text("protocolo"),
-  statusSefaz: text("status_sefaz"),
-  xmlUrl: text("xml_url"),
-  pdfUrl: text("pdf_url"),
-});
+export const documentos = sqliteTable(
+  "documentos",
+  {
+    id: text("id").primaryKey(),
+    vendaId: text("venda_id")
+      .notNull()
+      .references(() => vendas.id),
+    tipo: text("tipo", { enum: TIPOS_DOCUMENTO }).notNull(),
+    numero: integer("numero").notNull().unique(),
+    emitidoEm: momento("emitido_em").notNull(),
+    /** Copia congelada: corrigir o cadastro depois nao muda o recibo emitido. */
+    emitenteSnapshot: text("emitente_snapshot", { mode: "json" }).$type<Empresa>().notNull(),
+    destinatarioSnapshot: text("destinatario_snapshot", { mode: "json" }).$type<Cliente | null>(),
+    // NF-e (fase 3), ja reservado
+    serie: text("serie"),
+    chaveAcesso: text("chave_acesso"),
+    protocolo: text("protocolo"),
+    statusSefaz: text("status_sefaz"),
+    xmlUrl: text("xml_url"),
+    pdfUrl: text("pdf_url"),
+  },
+  (t) => [umDe("documentos_tipo_valido", t.tipo, TIPOS_DOCUMENTO)],
+);
 
 // ---------------------------------------------------------------- auditoria
 
 /** Quem fez o que. So insere, nunca altera nem apaga. */
-export const logAuditoria = pgTable(
+export const logAuditoria = sqliteTable(
   "log_auditoria",
   {
-    id: text("id").primaryKey(),
     ordem: ordem(),
+    id: text("id").notNull().unique(),
     ocorridoEm: momento("ocorrido_em").notNull(),
     /** Vazio na tentativa de login com e-mail que nao existe. */
     usuarioId: text("usuario_id").references(() => usuarios.id),

@@ -4,7 +4,7 @@
  * O estado do sistema para as telas, nos dois modos:
  *
  *   demo   (sem banco — e assim na Vercel) os dados moram no localStorage
- *   banco  (DATABASE_URL configurada) os dados moram no Postgres, e cada
+ *   banco  (BANCO_ARQUIVO configurado) os dados moram no SQLite, e cada
  *          acao vai ao servidor, que confere sessao e perfil antes de gravar
  *
  * As telas nao sabem a diferenca: as acoes tem a mesma forma nos dois, e a

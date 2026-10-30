@@ -1,8 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { EstadoProvider, type Modo } from "@/lib/store";
 
-// com DATABASE_URL o sistema roda no Postgres; sem ela (Vercel), e a demonstracao
-const MODO: Modo = process.env.DATABASE_URL ? "banco" : "demo";
+// com BANCO_ARQUIVO o sistema roda no SQLite; sem ela (Vercel), e a demonstracao
+const MODO: Modo = process.env.BANCO_ARQUIVO ? "banco" : "demo";
 import "./globals.css";
 
 export const metadata: Metadata = {
