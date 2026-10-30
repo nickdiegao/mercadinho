@@ -1,0 +1,1 @@
+ALTER TABLE `usuarios` ADD `recuperacao_hash` text;

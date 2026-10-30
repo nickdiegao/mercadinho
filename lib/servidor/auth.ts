@@ -14,6 +14,7 @@ import type { NextAuthOptions } from "next-auth";
 import { getServerSession } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import type { Perfil } from "../tipos";
+import { auditar as gravarAuditoria } from "./auditoria";
 import { banco } from "./db";
 import * as t from "./schema";
 
@@ -26,22 +27,8 @@ export const ERRO_LOGIN = {
   bloqueado: "BLOQUEADO",
 } as const;
 
-let contador = 0;
-const idLog = () => `lg_${Date.now().toString(36)}${(contador++).toString(36)}`;
-
 function auditar(usuarioId: string | null, acao: "LOGIN" | "LOGIN_FALHA", detalhe: string) {
-  banco()
-    .insert(t.logAuditoria)
-    .values({
-      id: idLog(),
-      ocorridoEm: new Date().toISOString(),
-      usuarioId,
-      acao,
-      entidade: "usuario",
-      entidadeId: usuarioId ?? "",
-      detalhe,
-    })
-    .run();
+  gravarAuditoria(banco(), { usuarioId, acao, entidade: "usuario", entidadeId: usuarioId ?? "", detalhe });
 }
 
 async function autenticar(emailBruto: string, senha: string) {
