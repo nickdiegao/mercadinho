@@ -2,15 +2,17 @@
 
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
-import { ArrowLeft, Ban, MessageCircle, Printer, Share2, Snowflake } from "lucide-react";
+import { ArrowLeft, Ban, FileText, MessageCircle, Printer, Share2, Snowflake } from "lucide-react";
 import { useEstado, usePerfil } from "@/lib/store";
 import { resumoCaixa } from "@/lib/consultas";
+import { imprimirBobina, imprimirPdf } from "@/lib/exportar";
 import { moeda, numero, dataHora, porExtenso } from "@/lib/formato";
 import { comoVendido } from "@/lib/embalagem";
 import { apenasDigitos } from "@/lib/documentos";
 import type { Cliente, Empresa, Venda } from "@/lib/tipos";
 import { Aviso, Botao, Campo } from "@/components/ui";
 import { Modal } from "@/components/modal";
+import { ReciboBobina } from "@/components/recibo-bobina";
 
 const FORMA: Record<string, string> = {
   DINHEIRO: "Dinheiro",
@@ -57,6 +59,8 @@ export default function Recibo({ params }: { params: Promise<{ id: string }> }) 
   const totalCascos = cascos.reduce((a, i) => a + i.qtd, 0);
   const cancelada = venda.status === "CANCELADA";
   const numeroDoc = String(doc?.numero ?? venda.numero).padStart(5, "0");
+  const titulo = cancelada ? "Venda cancelada" : doc ? "Recibo de venda" : "Pedido";
+  const operador = estado.usuarios.find((u) => u.id === venda.usuarioId)?.nome;
 
   const texto = textoRecibo(venda, e, cliente, numeroDoc, totalCascos);
   const telefone = cliente ? apenasDigitos(cliente.telefone) : "";
@@ -111,8 +115,11 @@ export default function Recibo({ params }: { params: Promise<{ id: string }> }) 
               <Share2 size={15} /> Compartilhar
             </Botao>
           )}
-          <Botao variante="primario" onClick={() => window.print()}>
-            <Printer size={15} /> Imprimir ou PDF
+          <Botao onClick={imprimirPdf} title="Abre o diálogo de impressão; escolha Salvar como PDF">
+            <FileText size={15} /> A4 ou PDF
+          </Botao>
+          <Botao variante="primario" onClick={imprimirBobina} title="Para a impressora de bobina, papel de 80 mm">
+            <Printer size={15} /> Imprimir recibo
           </Botao>
         </div>
       </div>
@@ -155,7 +162,7 @@ export default function Recibo({ params }: { params: Promise<{ id: string }> }) 
           </div>
           <div className="text-right">
             <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-suave">
-              {cancelada ? "Venda cancelada" : doc ? "Recibo de venda" : "Pedido"}
+              {titulo}
             </p>
             <p className="tabular text-[26px] font-bold leading-none text-tinta">
               {numeroDoc}
@@ -217,7 +224,7 @@ export default function Recibo({ params }: { params: Promise<{ id: string }> }) 
               <br />
               Pagamento: <b>{FORMA[venda.formaPagamento]}</b>
               <br />
-              Operador: {estado.usuarios.find((u) => u.id === venda.usuarioId)?.nome}
+              Operador: {operador}
             </p>
           </div>
         </section>
@@ -330,13 +337,24 @@ export default function Recibo({ params }: { params: Promise<{ id: string }> }) 
 
       <div className="nao-imprime mx-auto mt-4 max-w-[820px]">
         <Aviso tom="casco" titulo="Sobre este documento">
-          O botão <b>WhatsApp</b> abre a conversa com o cliente já com o recibo
+          <b>Imprimir recibo</b> sai na impressora de bobina, em papel de 80 mm. O
+          botão <b>WhatsApp</b> abre a conversa com o cliente já com o recibo
           escrito — basta enviar. Para mandar o arquivo em PDF, use{" "}
-          <b>Imprimir ou PDF</b>, salve e anexe na conversa. Não é nota fiscal: a
-          NF-e entra numa etapa própria do projeto.
+          <b>A4 ou PDF</b>, salve e anexe na conversa. Não é nota fiscal: a NF-e
+          entra numa etapa própria do projeto.
         </Aviso>
       </div>
 
+      <ReciboBobina
+        venda={venda}
+        empresa={e}
+        cliente={cliente}
+        titulo={titulo}
+        numeroDoc={numeroDoc}
+        pagamento={FORMA[venda.formaPagamento]}
+        operador={operador}
+        cascos={totalCascos}
+      />
       <CancelarVenda aberto={cancelando} venda={venda} onFechar={() => setCancelando(false)} />
     </>
   );

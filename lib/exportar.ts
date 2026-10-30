@@ -211,6 +211,33 @@ export function imprimirPdf() {
   window.print();
 }
 
+/**
+ * Recibo na impressora de bobina. A pagina fica com a altura exata do recibo:
+ * papel continuo nao tem folha, e uma pagina maior sairia com sobra em branco.
+ */
+export function imprimirBobina() {
+  const recibo = document.getElementById("recibo-bobina");
+  if (!recibo) return;
+  const html = document.documentElement;
+  html.classList.add("bobina");
+
+  const mm = 25.4 / 96;
+  const altura = Math.ceil(recibo.getBoundingClientRect().height * mm) + 2;
+  const pagina = document.createElement("style");
+  pagina.textContent = `@page { size: 80mm ${altura}mm; margin: 0; }`;
+  document.head.append(pagina);
+
+  window.addEventListener(
+    "afterprint",
+    () => {
+      pagina.remove();
+      html.classList.remove("bobina");
+    },
+    { once: true },
+  );
+  window.print();
+}
+
 // ---------------------------------------------------------------- util
 function baixar(blob: Blob, nome: string) {
   const url = URL.createObjectURL(blob);
