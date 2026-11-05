@@ -31,7 +31,9 @@ import {
   type DadosDe,
   type DadosEntrada,
   type DadosVenda,
+  type LinhaImportada,
   type NomeOperacao,
+  type ResumoImportacao,
   type ValorDe,
 } from "./operacoes";
 import { permissoes } from "./permissoes";
@@ -80,6 +82,8 @@ interface Ctx {
     p: Produto,
     estoqueInicial?: { qtdCompra: number; custoUnitCompra: number },
   ) => Promise<Produto>;
+  /** Produtos e precos de uma planilha, numa gravacao so. So a administradora. */
+  importarProdutos: (linhas: LinhaImportada[]) => Promise<ResumoImportacao>;
   /** Cria ou atualiza. Registro sem id ganha um novo. Devolve o que foi gravado. */
   salvarCliente: (c: Cliente) => Promise<Cliente>;
   salvarFornecedor: (f: Fornecedor) => Promise<Fornecedor>;
@@ -238,6 +242,7 @@ export function EstadoProvider({ modo, children }: { modo: Modo; children: React
       },
       salvarProduto: (produto) => rodar("salvarProduto", { produto }),
       cadastrarProduto: (produto, estoqueInicial) => rodar("cadastrarProduto", { produto, estoqueInicial }),
+      importarProdutos: (linhas) => rodar("importarProdutos", { linhas }),
       salvarCliente: (cliente) => rodar("salvarCliente", { cliente }),
       salvarFornecedor: (fornecedor) => rodar("salvarFornecedor", { fornecedor }),
       cancelarVenda: async (vendaId, motivo) => {

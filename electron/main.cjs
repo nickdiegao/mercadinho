@@ -27,6 +27,7 @@ const CONFIG = path.join(DADOS, "config.json");
 const SEGREDO = path.join(DADOS, "segredo");
 const LOG = path.join(DADOS, "servidor.log");
 const BACKUPS = path.join(app.getPath("documents"), "Mercadinho Backups");
+const COPIA_FORA = path.join(DADOS, "copia-fora.json");
 
 let janela = null;
 let servidor = null;
@@ -253,6 +254,65 @@ ipcMain.handle("recibo:imprimir", async (ev, alturaMm) => {
 ipcMain.handle("backups:abrir", async () => {
   fs.mkdirSync(BACKUPS, { recursive: true });
   await shell.openPath(BACKUPS);
+});
+
+/** Backups do programa, do mais novo para o mais antigo. */
+function backupsGuardados() {
+  try {
+    return fs
+      .readdirSync(BACKUPS)
+      .filter((n) => n.startsWith("mercadinho-") && n.endsWith(".db"))
+      .map((nome) => ({ nome, em: fs.statSync(path.join(BACKUPS, nome)).mtimeMs }))
+      .sort((a, b) => b.em - a.em);
+  } catch {
+    return [];
+  }
+}
+
+function lerCopiaFora() {
+  try {
+    return JSON.parse(fs.readFileSync(COPIA_FORA, "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Cesta de seguranca: a pessoa escolhe um pen drive (ou outra pasta) e o
+ * backup mais recente vai para la. O sistema lembra quando foi a ultima vez.
+ */
+ipcMain.handle("backups:copiar-fora", async () => {
+  const ultimo = backupsGuardados()[0];
+  if (!ultimo) return { ok: false, erro: "Ainda não há backup para copiar. Faça um backup antes." };
+  const escolha = await dialog.showOpenDialog(janela, {
+    title: "Escolha o pen drive ou a pasta para guardar a cópia",
+    defaultPath: lerCopiaFora().pasta || undefined,
+    properties: ["openDirectory", "createDirectory"],
+  });
+  if (escolha.canceled || !escolha.filePaths[0]) return { ok: false, cancelado: true };
+  const pasta = escolha.filePaths[0];
+  const origem = path.join(BACKUPS, ultimo.nome);
+  const destino = path.join(pasta, ultimo.nome);
+  try {
+    fs.copyFileSync(origem, destino);
+    if (fs.statSync(destino).size !== fs.statSync(origem).size) throw new Error("A cópia saiu incompleta.");
+  } catch (e) {
+    return { ok: false, erro: `Não consegui copiar para essa pasta: ${e.message}` };
+  }
+  const ultimaEm = new Date().toISOString();
+  fs.writeFileSync(COPIA_FORA, JSON.stringify({ ultimaEm, pasta }));
+  return { ok: true, pasta, arquivo: ultimo.nome, ultimaEm };
+});
+
+/** Quando foi a ultima copia fora do computador e desde quando ha backups. */
+ipcMain.handle("backups:situacao-fora", () => {
+  const todos = backupsGuardados();
+  const config = lerCopiaFora();
+  return {
+    ultimaEm: config.ultimaEm ?? null,
+    pasta: config.pasta ?? null,
+    primeiroBackupEm: todos.length ? new Date(todos[todos.length - 1].em).toISOString() : null,
+  };
 });
 
 /** O SQLite do proprio servidor: fora do pacote, carregado so aqui. */

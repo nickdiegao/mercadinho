@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { DatabaseBackup, FolderOpen, History, Printer, RefreshCw } from "lucide-react";
+import { DatabaseBackup, FolderOpen, HardDriveDownload, History, Printer, RefreshCw } from "lucide-react";
 import { fazerBackupAgora, gravarEmpresa, lerSituacaoBackup } from "@/app/acoes-contas";
 import { CamposEmpresa } from "@/components/form-empresa";
 import { Aviso, Botao, Cabecalho, Campo, Cartao, Selecao, TituloCartao } from "@/components/ui";
+import { copiarParaFora } from "@/lib/copia-fora";
 import { eletron } from "@/lib/eletron";
 import { dataHora } from "@/lib/formato";
 import { useEstado, usePerfil } from "@/lib/store";
@@ -138,11 +139,17 @@ function Backup() {
   const [situacao, setSituacao] = useState<Situacao | null>(null);
   const [aviso, setAviso] = useState<{ tom: "ok" | "erro"; texto: string } | null>(null);
   const [fazendo, setFazendo] = useState(false);
+  const [copiando, setCopiando] = useState(false);
+  const [fora, setFora] = useState<{ ultimaEm: string | null; pasta: string | null } | null>(null);
   const programa = eletron();
 
   useEffect(() => {
     void lerSituacaoBackup()
       .then((r) => r.ok && setSituacao(r.valor))
+      .catch(() => {});
+    void eletron()
+      ?.situacaoCopiaFora()
+      .then(setFora)
       .catch(() => {});
   }, []);
 
@@ -159,6 +166,17 @@ function Backup() {
     } else {
       setAviso({ tom: "erro", texto: r ? r.erro : "Não foi possível fazer o backup." });
     }
+  }
+
+  async function copiarFora() {
+    setCopiando(true);
+    setAviso(null);
+    const r = await copiarParaFora();
+    setCopiando(false);
+    if (r.ok) {
+      setAviso({ tom: "ok", texto: r.texto });
+      void programa?.situacaoCopiaFora().then(setFora).catch(() => {});
+    } else if (!r.cancelado) setAviso({ tom: "erro", texto: r.texto });
   }
 
   async function restaurar() {
@@ -185,6 +203,18 @@ function Backup() {
         <Aviso tom="casco" titulo="Guarde uma cópia fora do computador">
           Se o disco queimar ou o computador for roubado, a cópia que está nele vai junto.
           Uma vez por semana, passe o arquivo mais recente para um pen drive.
+          {programa && (
+            <>
+              {" "}
+              {fora?.ultimaEm ? (
+                <>
+                  A última cópia para fora foi em <b>{dataHora(fora.ultimaEm)}</b>.
+                </>
+              ) : (
+                <b>Você ainda não fez nenhuma cópia para fora.</b>
+              )}
+            </>
+          )}
         </Aviso>
         {aviso && <Mensagem {...aviso} />}
         <div className="flex flex-wrap justify-end gap-2">
@@ -195,6 +225,9 @@ function Backup() {
               </Botao>
               <Botao onClick={() => void programa.abrirPastaBackups()}>
                 <FolderOpen size={15} /> Abrir a pasta
+              </Botao>
+              <Botao onClick={() => void copiarFora()} disabled={copiando || fazendo}>
+                <HardDriveDownload size={15} /> {copiando ? "Copiando…" : "Copiar para pen drive"}
               </Botao>
             </>
           )}
