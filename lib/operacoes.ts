@@ -621,7 +621,20 @@ export function salvarProduto(estado: Estado, ctx: Contexto, d: { produto: Produ
   const editado = camposEditaveis(d.produto);
   // so a dona mexe em preco: dos outros perfis, o preco que veio e ignorado
   if (!pode.podeDefinirPreco) for (const c of CAMPOS_DE_PRECO) delete (editado as Partial<Produto>)[c];
-  const final: Produto = { ...atual, ...editado, ...(editado.vendeGelado === false ? { precoGelado: undefined } : {}) };
+  // custo medio: so a dona corrige a mao (o normal e ele mudar pela entrada)
+  const custoCorrigido =
+    pode.podeDefinirPreco &&
+    Number.isInteger(d.produto.custoMedio) &&
+    d.produto.custoMedio >= 0 &&
+    d.produto.custoMedio !== atual.custoMedio
+      ? d.produto.custoMedio
+      : undefined;
+  const final: Produto = {
+    ...atual,
+    ...editado,
+    ...(editado.vendeGelado === false ? { precoGelado: undefined } : {}),
+    ...(custoCorrigido !== undefined ? { custoMedio: custoCorrigido } : {}),
+  };
   validarProduto(estado, final);
 
   const mudouPreco = CAMPOS_DE_PRECO.some((c) => final[c] !== atual[c]);
@@ -640,9 +653,32 @@ export function salvarProduto(estado: Estado, ctx: Contexto, d: { produto: Produ
       ),
     );
 
+  if (custoCorrigido !== undefined)
+    logs.push(
+      registro(
+        ctx,
+        "ALTERAR_CUSTO",
+        "produto",
+        final.id,
+        `${final.nome}: custo médio por unidade ${(atual.custoMedio / 10000).toFixed(4).replace(".", ",")} → ${(custoCorrigido / 10000).toFixed(4).replace(".", ",")} (correção manual; vendas antigas não mudam)`,
+      ),
+    );
+
   return {
     valor: final,
-    efeitos: { inserir: { logs }, atualizar: { produtos: [{ ...editado, id: final.id, precoGelado: final.precoGelado }] } },
+    efeitos: {
+      inserir: { logs },
+      atualizar: {
+        produtos: [
+          {
+            ...editado,
+            id: final.id,
+            precoGelado: final.precoGelado,
+            ...(custoCorrigido !== undefined ? { custoMedio: custoCorrigido } : {}),
+          },
+        ],
+      },
+    },
   };
 }
 

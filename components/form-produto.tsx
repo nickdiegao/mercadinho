@@ -70,7 +70,7 @@ export function FormProduto({
       titulo={produto ? "Editar produto" : "Novo produto"}
       descricao={
         produto
-          ? "O custo médio não se edita aqui: ele só muda quando entra mercadoria."
+          ? "Aqui você ajusta dados, preços e, se precisar, corrige o custo médio."
           : "Cadastre a embalagem em que você compra e os preços de venda."
       }
       onFechar={onFechar}
@@ -112,6 +112,10 @@ function Corpo({
   const [gelado, setGelado] = useState(paraTexto(inicial.precoGelado ?? 0));
   const [minAtacado, setMinAtacado] = useState(String(inicial.qtdMinimaAtacado));
   const [minimo, setMinimo] = useState(String(inicial.estoqueMinimo || ""));
+  // custo medio por embalagem de compra (R$), igual ao que se digita na entrada
+  const custoDaEmbalagem = (c: number) =>
+    c > 0 ? paraTexto(Math.round((c * Math.max(1, inicial.fatorConversao)) / 100)) : "";
+  const [custoMedioTexto, setCustoMedioTexto] = useState(custoDaEmbalagem(inicial.custoMedio));
   // pergunta explicita: sem ela, digitar so o custo (para ver a margem)
   // travava o cadastro com um erro que a pessoa nao entendia
   const [temNoDeposito, setTemNoDeposito] = useState(false);
@@ -133,11 +137,15 @@ function Corpo({
   const custoIni = comEstoque ? paraCentavos(custoInicial) : 0;
 
   // custo para a previa de margem: o medio (edicao) ou o de abertura (novo)
+  const custoMedioCorrigido =
+    !novo && podeDefinirPreco && custoMedioTexto !== custoDaEmbalagem(inicial.custoMedio) && fator > 0
+      ? custoUnitBase(paraCentavos(custoMedioTexto), fator)
+      : undefined;
   const custoRef = novo
     ? custoIni && fator
       ? custoUnitBase(custoIni, fator)
       : 0
-    : p.custoMedio;
+    : (custoMedioCorrigido ?? p.custoMedio);
 
   const cascos = useMemo(
     () => estado.produtos.filter((x) => x.tipo === "VASILHAME"),
@@ -189,6 +197,7 @@ function Corpo({
           }
         : {}),
       estoqueMinimo: parseInt(minimo, 10) || 0,
+      ...(custoMedioCorrigido !== undefined ? { custoMedio: custoMedioCorrigido } : {}),
     };
 
     setGravando(true);
@@ -491,10 +500,29 @@ function Corpo({
               <p className="tabular mt-1 text-lg font-semibold text-tinta">
                 {p.custoMedio > 0 ? custoCurto(p.custoMedio) : "sem custo ainda"}
               </p>
-              <p className="mt-1 text-[12px] leading-relaxed text-suave">
-                Não é editável aqui de propósito: o custo médio só muda quando
-                entra mercadoria nova.
-              </p>
+              {podeDefinirPreco ? (
+                <>
+                  <div className="mt-2 max-w-[220px]">
+                    <Campo rotulo={`Corrigir custo por ${p.unidadeCompra} (R$)`}>
+                      <Entrada
+                        inputMode="decimal"
+                        value={custoMedioTexto}
+                        onChange={(e) => setCustoMedioTexto(e.target.value)}
+                        placeholder="0,00"
+                      />
+                    </Campo>
+                  </div>
+                  <p className="mt-1 text-[12px] leading-relaxed text-suave">
+                    Use para acertar um custo errado ou ainda sem valor. Só vale daqui para
+                    frente: as vendas já feitas não mudam. Quando entrar mercadoria, o
+                    custo médio é recalculado a partir deste valor.
+                  </p>
+                </>
+              ) : (
+                <p className="mt-1 text-[12px] leading-relaxed text-suave">
+                  O custo médio só muda quando entra mercadoria nova.
+                </p>
+              )}
             </div>
           )
         )}
