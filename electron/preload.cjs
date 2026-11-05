@@ -10,6 +10,12 @@ contextBridge.exposeInMainWorld("mercadinho", {
   restaurarBackup: () => ipcRenderer.invoke("backups:restaurar"),
   buscarAtualizacao: () => ipcRenderer.invoke("atualizacao:buscar"),
   instalarAtualizacao: () => ipcRenderer.invoke("atualizacao:instalar"),
+  versaoPronta: () => ipcRenderer.invoke("atualizacao:situacao"),
+  aoFicarPronta: (retorno) => {
+    const ouvinte = (_ev, versao) => retorno(versao);
+    ipcRenderer.on("atualizacao:pronta", ouvinte);
+    return () => ipcRenderer.removeListener("atualizacao:pronta", ouvinte);
+  },
   aoProgressoDaAtualizacao: (retorno) => {
     const ouvinte = (_ev, pct) => retorno(pct);
     ipcRenderer.on("atualizacao:progresso", ouvinte);
