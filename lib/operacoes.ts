@@ -928,6 +928,181 @@ export function fecharCaixa(estado: Estado, ctx: Contexto, d: { valorContado: nu
   };
 }
 
+// ================================================================ importar planilha
+
+export interface LinhaImportada {
+  sku?: string;
+  nome: string;
+  categoria?: string;
+  unidadeCompra?: string;
+  fator?: number;
+  /** 1/10000 de real por unidade */
+  custoUnit?: number;
+  /** centavos */
+  precoVarejo?: number;
+  precoAtacado?: number;
+  qtdMinimaAtacado?: number;
+  precoGelado?: number;
+  estoqueMinimo?: number;
+}
+
+export interface ResumoImportacao {
+  atualizados: number;
+  criados: number;
+  semMudanca: number;
+  avisos: string[];
+}
+
+const semAcento = (s: string) =>
+  s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+
+/**
+ * Produtos e precos vindos de uma planilha. Casa a linha com o produto pelo
+ * codigo ou pelo nome; o que a planilha deixa em branco nao muda. O saldo
+ * nunca vem daqui: so por entrada ou contagem.
+ */
+export function importarProdutos(
+  estado: Estado,
+  ctx: Contexto,
+  d: { linhas: LinhaImportada[] },
+): Resultado<ResumoImportacao> {
+  if (!Array.isArray(d.linhas) || d.linhas.length === 0) falha("A planilha não tem produtos.");
+  if (d.linhas.length > 2000) falha("A planilha tem linhas demais (máximo 2000).");
+
+  const normais = estado.produtos.filter((p) => p.tipo === "NORMAL");
+  const porSku = new Map(normais.map((p) => [p.sku.toLowerCase(), p]));
+  const porNome = new Map(normais.map((p) => [semAcento(p.nome), p]));
+  const porCategoria = new Map(estado.categorias.map((c) => [semAcento(c.nome), c.id]));
+  const categoriaPadrao = porCategoria.get("outros") ?? estado.categorias.find((c) => c.id !== "c_vasilhame")?.id ?? "";
+  const UNIDADES = ["UN", "CX", "FD", "ENG", "BARRIL"];
+  const reais = (c: number) => (c / 100).toFixed(2).replace(".", ",");
+  const ehNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+
+  const resumo: ResumoImportacao = { atualizados: 0, criados: 0, semMudanca: 0, avisos: [] };
+  const novos: Produto[] = [];
+  const mudancas = new Map<string, Partial<Produto> & { id: string }>();
+  const logs: LogAuditoria[] = [];
+  const vistos = new Set<string>();
+  let proximo =
+    estado.produtos.reduce((m, p) => {
+      const a = /^SKU(\d+)$/.exec(p.sku);
+      return a ? Math.max(m, Number(a[1])) : m;
+    }, 0) + 1;
+
+  d.linhas.forEach((l, i) => {
+    const linha = i + 1;
+    const nome = texto(l.nome);
+    if (!nome) return;
+    const chave = semAcento(nome);
+    if (vistos.has(chave)) {
+      resumo.avisos.push(`"${nome}" aparece mais de uma vez: só a primeira linha valeu.`);
+      return;
+    }
+    vistos.add(chave);
+
+    for (const c of ["precoVarejo", "precoAtacado", "precoGelado"] as const)
+      if (l[c] !== undefined && (!ehNum(l[c]) || l[c]! < 0 || !Number.isInteger(l[c])))
+        falha(`Linha ${linha} (${nome}): preço inválido.`);
+    if (l.custoUnit !== undefined && (!ehNum(l.custoUnit) || l.custoUnit < 0 || !Number.isInteger(l.custoUnit)))
+      falha(`Linha ${linha} (${nome}): custo inválido.`);
+    if (l.fator !== undefined && (!ehNum(l.fator) || !Number.isInteger(l.fator) || l.fator < 1))
+      falha(`Linha ${linha} (${nome}): unidades na embalagem inválidas.`);
+    const unidade = l.unidadeCompra ? l.unidadeCompra.toUpperCase().trim() : undefined;
+    if (unidade && !UNIDADES.includes(unidade))
+      falha(`Linha ${linha} (${nome}): embalagem "${l.unidadeCompra}" não existe (use ${UNIDADES.join(", ")}).`);
+    const categoriaId = l.categoria ? porCategoria.get(semAcento(l.categoria)) : undefined;
+    if (l.categoria && !categoriaId) resumo.avisos.push(`${nome}: categoria "${l.categoria}" não existe; foi ignorada.`);
+
+    const sku = texto(l.sku ?? "").toLowerCase();
+    const atual = (sku ? porSku.get(sku) : undefined) ?? porNome.get(chave);
+
+    if (atual) {
+      const m: Partial<Produto> & { id: string } = { id: atual.id };
+      const unidadeFinal = (unidade ?? atual.unidadeCompra) as Produto["unidadeCompra"];
+      const fatorFinal = unidadeFinal === "UN" ? 1 : (l.fator ?? atual.fatorConversao);
+      if (unidade && unidade !== atual.unidadeCompra) m.unidadeCompra = unidadeFinal;
+      if (fatorFinal !== atual.fatorConversao) m.fatorConversao = fatorFinal;
+      if (categoriaId && categoriaId !== atual.categoriaId) m.categoriaId = categoriaId;
+      if (l.precoVarejo !== undefined && l.precoVarejo !== atual.precoVarejo) m.precoVarejo = l.precoVarejo;
+      if (l.precoAtacado !== undefined && l.precoAtacado !== atual.precoAtacado) m.precoAtacado = l.precoAtacado;
+      if (l.qtdMinimaAtacado !== undefined && l.qtdMinimaAtacado >= 1 && l.qtdMinimaAtacado !== atual.qtdMinimaAtacado)
+        m.qtdMinimaAtacado = l.qtdMinimaAtacado;
+      if (l.estoqueMinimo !== undefined && l.estoqueMinimo >= 0 && l.estoqueMinimo !== atual.estoqueMinimo)
+        m.estoqueMinimo = l.estoqueMinimo;
+      if (l.precoGelado !== undefined && l.precoGelado > 0 && (l.precoGelado !== atual.precoGelado || !atual.vendeGelado)) {
+        m.precoGelado = l.precoGelado;
+        m.vendeGelado = true;
+      }
+      if (l.custoUnit !== undefined && l.custoUnit > 0 && l.custoUnit !== atual.custoMedio) m.custoMedio = l.custoUnit;
+
+      if (Object.keys(m).length === 1) {
+        resumo.semMudanca++;
+        return;
+      }
+      // preco novo de varejo num produto sem atacado: o atacado acompanha
+      if (m.precoVarejo !== undefined && m.precoAtacado === undefined && atual.precoAtacado <= 0)
+        m.precoAtacado = m.precoVarejo;
+      mudancas.set(atual.id, m);
+      resumo.atualizados++;
+      const partes: string[] = [];
+      if (m.precoVarejo !== undefined) partes.push(`varejo ${reais(atual.precoVarejo)} → ${reais(m.precoVarejo)}`);
+      if (m.precoAtacado !== undefined) partes.push(`atacado ${reais(atual.precoAtacado)} → ${reais(m.precoAtacado)}`);
+      if (m.precoGelado !== undefined) partes.push(`gelado ${reais(atual.precoGelado ?? 0)} → ${reais(m.precoGelado)}`);
+      if (m.custoMedio !== undefined)
+        partes.push(
+          `custo ${(atual.custoMedio / 10000).toFixed(4).replace(".", ",")} → ${(m.custoMedio / 10000).toFixed(4).replace(".", ",")}`,
+        );
+      logs.push(registro(ctx, "IMPORTAR_PLANILHA", "produto", atual.id, `${atual.nome}: ${partes.join(", ") || "dados do cadastro"}`));
+      return;
+    }
+
+    // produto novo
+    const unidadeFinal = (unidade ?? "UN") as Produto["unidadeCompra"];
+    const fator = unidadeFinal === "UN" ? 1 : (l.fator ?? 1);
+    const varejo = l.precoVarejo ?? 0;
+    const gelado = l.precoGelado && l.precoGelado > 0 ? l.precoGelado : undefined;
+    const codigoLivre = sku && !porSku.has(sku) ? texto(l.sku ?? "") : "";
+    const novo: Produto = {
+      id: ctx.novoId("p"),
+      sku: codigoLivre || `SKU${String(proximo++).padStart(4, "0")}`,
+      codigoBarras: "",
+      nome,
+      categoriaId: categoriaId ?? categoriaPadrao,
+      tipo: "NORMAL",
+      unidadeBase: "UN",
+      unidadeCompra: unidadeFinal,
+      fatorConversao: fator,
+      custoMedio: l.custoUnit ?? 0,
+      custoUltimaCompra: l.custoUnit ?? 0,
+      precoVarejo: varejo,
+      precoAtacado: l.precoAtacado ?? varejo,
+      ...(gelado ? { precoGelado: gelado, vendeGelado: true } : {}),
+      qtdMinimaAtacado: l.qtdMinimaAtacado && l.qtdMinimaAtacado >= 1 ? l.qtdMinimaAtacado : fator,
+      estoqueMinimo: l.estoqueMinimo && l.estoqueMinimo > 0 ? l.estoqueMinimo : 0,
+      saldoAtual: 0,
+      ncm: "",
+      ativo: true,
+    };
+    validarProduto(estado, novo);
+    novos.push(novo);
+    porNome.set(chave, novo);
+    porSku.set(novo.sku.toLowerCase(), novo);
+    resumo.criados++;
+    logs.push(registro(ctx, "IMPORTAR_PLANILHA", "produto", novo.id, `${novo.nome}: produto novo (varejo ${reais(novo.precoVarejo)})`));
+  });
+
+  if (resumo.atualizados + resumo.criados + resumo.semMudanca === 0)
+    falha("Nenhuma linha com nome de produto foi encontrada.");
+
+  return {
+    valor: resumo,
+    efeitos: {
+      inserir: { ...(novos.length ? { produtos: novos } : {}), ...(logs.length ? { logs } : {}) },
+      atualizar: mudancas.size ? { produtos: [...mudancas.values()] } : {},
+    },
+  };
+}
+
 // ================================================================ catalogo
 
 /**
@@ -941,6 +1116,7 @@ export const OPERACOES = {
   ajustarEstoque: { fn: ajustarEstoque, pode: (p: Permissoes) => p.podeEstoque },
   salvarProduto: { fn: salvarProduto, pode: (p: Permissoes) => p.podeCadastrarProduto },
   cadastrarProduto: { fn: cadastrarProduto, pode: (p: Permissoes) => p.podeCadastrarProduto },
+  importarProdutos: { fn: importarProdutos, pode: (p: Permissoes) => p.podeDefinirPreco },
   salvarCliente: { fn: salvarCliente, pode: (p: Permissoes) => p.podeCadastrarCliente },
   salvarFornecedor: { fn: salvarFornecedor, pode: (p: Permissoes) => p.podeCadastrarFornecedor },
   abrirCaixa: { fn: abrirCaixa, pode: (p: Permissoes) => p.podeVender },

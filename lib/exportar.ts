@@ -246,7 +246,7 @@ export async function imprimirBobina() {
 }
 
 // ---------------------------------------------------------------- util
-function baixar(blob: Blob, nome: string) {
+export function baixar(blob: Blob, nome: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

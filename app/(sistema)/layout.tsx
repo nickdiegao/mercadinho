@@ -24,6 +24,7 @@ import {
   X,
 } from "lucide-react";
 import { AvisoAtualizacao } from "@/components/aviso-atualizacao";
+import { AvisoCopiaFora } from "@/components/aviso-copia-fora";
 import { useEstado, usePerfil } from "@/lib/store";
 
 const MENU = [
@@ -170,6 +171,7 @@ export default function LayoutSistema({ children }: { children: React.ReactNode 
       <main className="min-w-0 flex-1">
         <div className="mx-auto max-w-[1180px] px-4 py-5 sm:px-5 sm:py-7 lg:px-8 lg:py-9">
           <AvisoAtualizacao />
+          <AvisoCopiaFora />
           {children}
         </div>
       </main>

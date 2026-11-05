@@ -8,6 +8,8 @@ contextBridge.exposeInMainWorld("mercadinho", {
   imprimirRecibo: (alturaMm) => ipcRenderer.invoke("recibo:imprimir", alturaMm),
   abrirPastaBackups: () => ipcRenderer.invoke("backups:abrir"),
   restaurarBackup: () => ipcRenderer.invoke("backups:restaurar"),
+  copiarBackupParaFora: () => ipcRenderer.invoke("backups:copiar-fora"),
+  situacaoCopiaFora: () => ipcRenderer.invoke("backups:situacao-fora"),
   buscarAtualizacao: () => ipcRenderer.invoke("atualizacao:buscar"),
   instalarAtualizacao: () => ipcRenderer.invoke("atualizacao:instalar"),
   versaoPronta: () => ipcRenderer.invoke("atualizacao:situacao"),

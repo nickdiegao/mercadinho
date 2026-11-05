@@ -16,6 +16,7 @@ import {
 import { moeda, numero, custoCurto, moeda4 } from "@/lib/formato";
 import { Lista, type ColunaLista } from "@/components/lista";
 import { FormProduto } from "@/components/form-produto";
+import { ImportarPlanilha } from "@/components/importar-planilha";
 import type { Produto } from "@/lib/tipos";
 import {
   Aviso,
@@ -284,15 +285,18 @@ export default function Produtos() {
         titulo="Produtos"
         descricao="Toque num produto para ver custo, margem e markup. Cada produto tem preço de varejo, de atacado e, se gelar, preço gelado."
         acoes={
-          podeCadastrarProduto && (
-            <Botao
-              variante="primario"
-              onClick={() => setForm({ produto: null })}
-              className="w-full sm:w-auto"
-            >
-              <Plus size={15} /> Novo produto
-            </Botao>
-          )
+          <>
+            <ImportarPlanilha />
+            {podeCadastrarProduto && (
+              <Botao
+                variante="primario"
+                onClick={() => setForm({ produto: null })}
+                className="w-full sm:w-auto"
+              >
+                <Plus size={15} /> Novo produto
+              </Botao>
+            )}
+          </>
         }
       />
 

@@ -12,6 +12,21 @@ export interface Eletron {
   abrirPastaBackups: () => Promise<void>;
   /** Pergunta o arquivo, confirma e troca os dados. O programa recarrega sozinho. */
   restaurarBackup: () => Promise<{ ok: boolean; erro?: string }>;
+  /** Pergunta a pasta (pen drive) e copia o backup mais recente para la. */
+  copiarBackupParaFora: () => Promise<{
+    ok: boolean;
+    cancelado?: boolean;
+    erro?: string;
+    pasta?: string;
+    arquivo?: string;
+    ultimaEm?: string;
+  }>;
+  /** Quando foi a ultima copia fora do computador, e desde quando ha backups. */
+  situacaoCopiaFora: () => Promise<{
+    ultimaEm: string | null;
+    pasta: string | null;
+    primeiroBackupEm: string | null;
+  }>;
   /** Procura versao nova e, se houver, baixa. "baixada" espera o botao de instalar. */
   buscarAtualizacao: () => Promise<{
     estado: "atual" | "baixada" | "erro" | "indisponivel" | "ocupado";
