@@ -11,6 +11,7 @@
  *      no programa montado;
  *   2. um banco "antigo" (criado antes do catalogo, sem produtos) e atualizado
  *      ao abrir: os produtos entram, com saldo 0, uma vez so;
+ *      a primeira abertura (banco novo, criar administrador) funciona;
  *   3. o servidor sobe, a tela de entrada responde e o programa nao fecha.
  *
  * Sai com codigo 0 se tudo passou e 1 se algo falhou.
@@ -92,6 +93,16 @@ try {
   const vazio = antes.prepare("select count(*) n from produtos").get().n;
   antes.close();
   confere("banco de teste sem produtos (como na 0.1.0)", vazio === 0, `${vazio} produtos`);
+
+  // primeira abertura: banco novo, criar empresa e administrador pela mesma funcao da tela
+  const novo = join(temp, "novo.db");
+  const primeira = spawnSync("npx", ["tsx", "scripts/checar-primeira-abertura.ts"], {
+    cwd: RAIZ,
+    shell: true,
+    encoding: "utf8",
+    env: { ...process.env, BANCO_ARQUIVO: novo, NEXTAUTH_SECRET: randomBytes(16).toString("hex") },
+  });
+  confere("primeira abertura (criar empresa e administrador)", primeira.status === 0, primeira.status === 0 ? "" : (primeira.stderr ?? "").trim().split("\n").slice(-2).join(" "));
 
   // ---------------------------------------------------------------- 3. abre o programa
   console.log("\n3. Abrir o programa");

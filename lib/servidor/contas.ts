@@ -135,8 +135,9 @@ export async function configurar(d: DadosConfiguracao) {
       tx.insert(t.categorias).values(estadoVazio().categorias).run();
       // estoque ja cadastrado, com saldo 0
       gravarEfeitos(tx, { inserir: { produtos: catalogoInicial() }, atualizar: {} });
-      auditar(tx, { usuarioId: id, acao: "CATALOGO_INICIAL", entidade: "produtos", detalhe: "catálogo inicial carregado" });
       tx.insert(t.usuarios).values({ id, nome, email, senhaHash, recuperacaoHash, perfil: "ADMIN" }).run();
+      // a auditoria aponta para o usuario: so pode vir depois dele
+      auditar(tx, { usuarioId: id, acao: "CATALOGO_INICIAL", entidade: "produtos", detalhe: "catálogo inicial carregado" });
       auditar(tx, { usuarioId: id, acao: "SISTEMA_CONFIGURADO", entidade: "empresa", detalhe: empresa.nomeFantasia });
     },
     { behavior: "immediate" },
