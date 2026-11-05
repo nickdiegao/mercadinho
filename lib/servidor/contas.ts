@@ -15,10 +15,11 @@ import { compare, hash } from "bcryptjs";
 import { and, count, eq, ne, sql } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 import { validarCNPJ } from "../documentos";
-import { estadoVazio } from "../seed";
+import { catalogoInicial, estadoVazio } from "../seed";
 import type { Empresa, Perfil, Usuario } from "../tipos";
 import { auditar } from "./auditoria";
 import { banco, type Conexao } from "./db";
+import { gravarEfeitos } from "./estado";
 import * as t from "./schema";
 
 const CUSTO_BCRYPT = 12;
@@ -132,6 +133,8 @@ export async function configurar(d: DadosConfiguracao) {
       if (n > 0) falha("Este sistema já foi configurado.");
       tx.insert(t.empresa).values({ id: 1, ...empresa }).run();
       tx.insert(t.categorias).values(estadoVazio().categorias).run();
+      // estoque ja cadastrado, com saldo 0
+      gravarEfeitos(tx, { inserir: { produtos: catalogoInicial() }, atualizar: {} });
       tx.insert(t.usuarios).values({ id, nome, email, senhaHash, recuperacaoHash, perfil: "ADMIN" }).run();
       auditar(tx, { usuarioId: id, acao: "SISTEMA_CONFIGURADO", entidade: "empresa", detalhe: empresa.nomeFantasia });
     },

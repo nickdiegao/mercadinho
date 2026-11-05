@@ -172,20 +172,13 @@ function diaAs(base: Date, diasAtras: number, hora: number, minuto: number) {
   return d;
 }
 
-export function gerarEstado(): Estado {
-  rnd = mulberry32(20260901);
-  seqId = 0;
-
-  const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
-
+/**
+ * Produtos e vasilhames do catalogo, todos com saldo 0. E o que um banco novo
+ * recebe na primeira abertura: o estoque ja vem cadastrado e vazio, e a
+ * quantidade entra pelas entradas de mercadoria ou pela contagem inicial.
+ */
+export function catalogoInicial(): Produto[] {
   const produtos: Produto[] = [];
-  const movimentos: MovimentoEstoque[] = [];
-  const entradas: Entrada[] = [];
-  const vendas: Venda[] = [];
-  const caixaSessoes: CaixaSessao[] = [];
-  const caixaMovimentos: CaixaMovimento[] = [];
-  const documentos: Documento[] = [];
 
   // ---- vasilhames primeiro (produtos apontam para eles)
   for (const [vid, nome, custo] of VASILHAMES) {
@@ -241,6 +234,24 @@ export function gerarEstado(): Estado {
       ativo: true,
     });
   });
+  return produtos;
+}
+
+export function gerarEstado(): Estado {
+  rnd = mulberry32(20260901);
+  seqId = 0;
+
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+
+  const movimentos: MovimentoEstoque[] = [];
+  const entradas: Entrada[] = [];
+  const vendas: Venda[] = [];
+  const caixaSessoes: CaixaSessao[] = [];
+  const caixaMovimentos: CaixaMovimento[] = [];
+  const documentos: Documento[] = [];
+
+  const produtos = catalogoInicial();
 
   const porId = new Map(produtos.map((p) => [p.id, p]));
   const normais = produtos.filter((p) => p.tipo === "NORMAL");
