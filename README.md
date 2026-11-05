@@ -55,11 +55,11 @@ entram com a `SENHA_INICIAL` do `.env.local`.
 |---|---|
 | `npm run banco:migrar` | cria ou atualiza as tabelas |
 | `npm run banco:semear` | **apaga tudo** e carrega a demonstração |
-| `npm run banco:zerar` | **apaga tudo** e deixa só empresa, usuários e categorias — pronto para os dados reais |
+| `npm run banco:zerar` | **apaga tudo** e deixa só empresa, usuários, categorias e os produtos do catálogo com saldo 0 — pronto para os dados reais |
 | `npm run banco:gerar` | depois de mudar `lib/servidor/schema.ts`, gera a migration |
 
 Com um arquivo novo, sem usuários, o sistema abre na **primeira abertura**: cria
-a empresa e a administração e mostra o código de recuperação, uma vez só. As
+a empresa e a administração, carrega os produtos do catálogo com saldo 0 e mostra o código de recuperação, uma vez só. As
 tabelas se atualizam sozinhas quando o servidor sobe (`instrumentation.ts`).
 
 O arquivo do banco fica **fora da pasta do projeto** de propósito: o OneDrive
