@@ -33,6 +33,7 @@ let servidor = null;
 let endereco = "";
 let saindo = false;
 let reiniciando = false;
+let saidaConfirmada = false;
 
 // ---------------------------------------------------------------- config
 
@@ -173,6 +174,29 @@ function criarJanela() {
     janela.maximize();
     janela.show();
   });
+  // fechar a janela fecha o sistema: pergunta antes, para ninguem sair sem querer
+  janela.on("close", (ev) => {
+    if (saidaConfirmada || saindo || reiniciando) return;
+    ev.preventDefault();
+    const resposta = dialog.showMessageBoxSync(janela, {
+      type: "question",
+      title: "Sair do sistema",
+      message: "Deseja sair do sistema?",
+      detail: "Vendas e cadastros já feitos ficam guardados. Se houver uma atualização baixada, ela é instalada ao sair.",
+      buttons: ["Sair", "Continuar no sistema"],
+      defaultId: 1,
+      cancelId: 1,
+      noLink: true,
+    });
+    if (resposta === 0) {
+      saidaConfirmada = true;
+      janela.close();
+    }
+  });
+  // desligar o Windows nao pode ficar esperando resposta
+  janela.on("session-end", () => {
+    saidaConfirmada = true;
+  });
   janela.on("closed", () => {
     janela = null;
   });
@@ -304,14 +328,68 @@ ipcMain.handle("backups:restaurar", async () => {
 
 // ---------------------------------------------------------------- atualizacao
 
-function procurarAtualizacao() {
-  autoUpdater.logger = null;
+let atualizadorPronto = false;
+/** Versao ja baixada, esperando o programa fechar (ou o botao "Reiniciar"). */
+let versaoBaixada = null;
+
+function prepararAtualizador() {
+  if (atualizadorPronto) return;
+  atualizadorPronto = true;
+  // o que acontece na atualizacao fica num arquivo, para dar para investigar
+  const registro = (nivel) => (msg) => {
+    try {
+      fs.appendFileSync(path.join(DADOS, "atualizacao.log"), `${new Date().toISOString()} ${nivel} ${msg?.stack ?? msg}\n`);
+    } catch {}
+  };
+  autoUpdater.logger = { info: registro("INFO"), warn: registro("AVISO"), error: registro("ERRO"), debug: () => {} };
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
-  // sem internet, ou repositorio privado: segue na versao atual, sem avisar
-  autoUpdater.on("error", () => {});
+  autoUpdater.on("error", (e) => registro("ERRO")(e));
+  autoUpdater.on("update-downloaded", (info) => {
+    versaoBaixada = info.version;
+  });
+  autoUpdater.on("download-progress", (p) => {
+    janela?.webContents.send("atualizacao:progresso", Math.round(p.percent));
+  });
+}
+
+/** Ao abrir: procura em silencio. Sem internet, segue na versao atual. */
+function procurarAtualizacao() {
+  prepararAtualizador();
   autoUpdater.checkForUpdates().catch(() => {});
 }
+
+let conferindo = false;
+
+/** O botao "Buscar atualizacoes": procura, baixa se houver e devolve o que aconteceu. */
+ipcMain.handle("atualizacao:buscar", async () => {
+  if (!app.isPackaged) return { estado: "indisponivel" };
+  if (conferindo) return { estado: "ocupado" };
+  conferindo = true;
+  try {
+    prepararAtualizador();
+    if (versaoBaixada) return { estado: "baixada", versao: versaoBaixada };
+    const r = await autoUpdater.checkForUpdates();
+    if (!r || !r.isUpdateAvailable) return { estado: "atual", versao: app.getVersion() };
+    // com autoDownload ligado o download ja comecou: espera ele terminar
+    if (r.downloadPromise) await r.downloadPromise;
+    else await autoUpdater.downloadUpdate();
+    versaoBaixada = r.updateInfo.version;
+    return { estado: "baixada", versao: versaoBaixada };
+  } catch (e) {
+    return { estado: "erro", erro: String(e?.message ?? e).split("\n")[0].slice(0, 200) };
+  } finally {
+    conferindo = false;
+  }
+});
+
+/** Fecha o programa, instala a versao baixada e abre de novo. */
+ipcMain.handle("atualizacao:instalar", () => {
+  if (!versaoBaixada) return { ok: false };
+  saidaConfirmada = true;
+  setImmediate(() => autoUpdater.quitAndInstall(true, true));
+  return { ok: true };
+});
 
 // ---------------------------------------------------------------- partida
 

@@ -8,4 +8,11 @@ contextBridge.exposeInMainWorld("mercadinho", {
   imprimirRecibo: (alturaMm) => ipcRenderer.invoke("recibo:imprimir", alturaMm),
   abrirPastaBackups: () => ipcRenderer.invoke("backups:abrir"),
   restaurarBackup: () => ipcRenderer.invoke("backups:restaurar"),
+  buscarAtualizacao: () => ipcRenderer.invoke("atualizacao:buscar"),
+  instalarAtualizacao: () => ipcRenderer.invoke("atualizacao:instalar"),
+  aoProgressoDaAtualizacao: (retorno) => {
+    const ouvinte = (_ev, pct) => retorno(pct);
+    ipcRenderer.on("atualizacao:progresso", ouvinte);
+    return () => ipcRenderer.removeListener("atualizacao:progresso", ouvinte);
+  },
 });
