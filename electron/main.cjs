@@ -387,7 +387,8 @@ ipcMain.handle("atualizacao:buscar", async () => {
 ipcMain.handle("atualizacao:instalar", () => {
   if (!versaoBaixada) return { ok: false };
   saidaConfirmada = true;
-  setImmediate(() => autoUpdater.quitAndInstall(true, true));
+  // instalador com janela (progresso), para quem esta olhando saber que esta atualizando
+  setImmediate(() => autoUpdater.quitAndInstall(false, true));
   return { ok: true };
 });
 

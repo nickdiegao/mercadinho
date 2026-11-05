@@ -213,6 +213,7 @@ function Atualizacao() {
     | { tom: "buscando"; pct: number | null }
     | { tom: "atual" }
     | { tom: "baixada"; versao: string }
+    | { tom: "instalando" }
     | { tom: "erro"; texto: string };
   const [versao, setVersao] = useState<string | null>(null);
   const [situacao, setSituacao] = useState<Situacao>({ tom: "nada" });
@@ -239,6 +240,11 @@ function Atualizacao() {
     else setSituacao({ tom: "erro", texto: `Não foi possível atualizar: ${r.erro ?? "sem internet?"}` });
   }
 
+  async function instalar() {
+    setSituacao({ tom: "instalando" });
+    await programa!.instalarAtualizacao();
+  }
+
   const buscando = situacao.tom === "buscando";
   return (
     <Cartao>
@@ -254,12 +260,15 @@ function Atualizacao() {
             {situacao.pct == null ? "Procurando…" : `Baixando a nova versão… ${situacao.pct}%`}
           </p>
         )}
+        {situacao.tom === "instalando" && (
+          <Mensagem tom="ok" texto="Fechando o sistema e instalando. Uma janela de progresso vai aparecer; o sistema abre sozinho ao terminar. Não desligue o computador." />
+        )}
         {situacao.tom === "baixada" && (
           <Mensagem tom="ok" texto={`A versão ${situacao.versao} está pronta. O sistema fecha, instala e abre de novo; seus dados ficam como estão.`} />
         )}
         <div className="flex flex-wrap justify-end gap-2">
-          {situacao.tom === "baixada" ? (
-            <Botao variante="primario" onClick={() => void programa.instalarAtualizacao()}>
+          {situacao.tom === "instalando" ? null : situacao.tom === "baixada" ? (
+            <Botao variante="primario" onClick={() => void instalar()}>
               <RefreshCw size={15} /> Reiniciar e instalar
             </Botao>
           ) : (
