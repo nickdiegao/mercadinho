@@ -6,6 +6,9 @@ export async function register() {
     // versao nova que muda as tabelas: guarda como estava antes de mexer
     if (process.env.BACKUP_PASTA && temMigracaoPendente()) await fazerBackup("antes-da-atualizacao");
     migrar();
+    // banco criado antes do catalogo inicial (versoes 0.1.0 a 0.1.2): carrega uma vez
+    const { carregarCatalogoSeVazio } = await import("./lib/servidor/contas");
+    carregarCatalogoSeVazio();
     agendarBackups();
   }
 }

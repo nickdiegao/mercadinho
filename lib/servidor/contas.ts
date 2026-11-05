@@ -135,12 +135,37 @@ export async function configurar(d: DadosConfiguracao) {
       tx.insert(t.categorias).values(estadoVazio().categorias).run();
       // estoque ja cadastrado, com saldo 0
       gravarEfeitos(tx, { inserir: { produtos: catalogoInicial() }, atualizar: {} });
+      auditar(tx, { usuarioId: id, acao: "CATALOGO_INICIAL", entidade: "produtos", detalhe: "catálogo inicial carregado" });
       tx.insert(t.usuarios).values({ id, nome, email, senhaHash, recuperacaoHash, perfil: "ADMIN" }).run();
       auditar(tx, { usuarioId: id, acao: "SISTEMA_CONFIGURADO", entidade: "empresa", detalhe: empresa.nomeFantasia });
     },
     { behavior: "immediate" },
   );
   return codigo;
+}
+
+/**
+ * Banco criado antes de existir o catalogo inicial: carrega os produtos uma
+ * unica vez, e so se o sistema ainda nao tem produto, venda nem movimento.
+ * Quem ja cadastrou algo, ou ja apagou o catalogo, nao recebe nada de novo.
+ */
+export function carregarCatalogoSeVazio() {
+  if (precisaConfigurar()) return false; // ainda nao abriu: a primeira abertura carrega
+  const db = banco();
+  const n = (tabela: typeof t.produtos | typeof t.vendas | typeof t.movimentosEstoque) =>
+    db.select({ n: count() }).from(tabela).get()?.n ?? 0;
+  if (n(t.produtos) > 0 || n(t.vendas) > 0 || n(t.movimentosEstoque) > 0) return false;
+  const jaFoi = db.select({ n: count() }).from(t.logAuditoria).where(eq(t.logAuditoria.acao, "CATALOGO_INICIAL")).get()?.n ?? 0;
+  if (jaFoi > 0) return false;
+
+  db.transaction(
+    (tx) => {
+      gravarEfeitos(tx, { inserir: { produtos: catalogoInicial() }, atualizar: {} });
+      auditar(tx, { usuarioId: null, acao: "CATALOGO_INICIAL", entidade: "produtos", detalhe: "catálogo inicial carregado na atualização" });
+    },
+    { behavior: "immediate" },
+  );
+  return true;
 }
 
 /** Sem usuario logado: quem prova ter o codigo troca a senha. */
