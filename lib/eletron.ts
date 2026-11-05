@@ -12,6 +12,16 @@ export interface Eletron {
   abrirPastaBackups: () => Promise<void>;
   /** Pergunta o arquivo, confirma e troca os dados. O programa recarrega sozinho. */
   restaurarBackup: () => Promise<{ ok: boolean; erro?: string }>;
+  /** Procura versao nova e, se houver, baixa. "baixada" espera o botao de instalar. */
+  buscarAtualizacao: () => Promise<{
+    estado: "atual" | "baixada" | "erro" | "indisponivel" | "ocupado";
+    versao?: string;
+    erro?: string;
+  }>;
+  /** Fecha o programa, instala a versao baixada e abre de novo. */
+  instalarAtualizacao: () => Promise<{ ok: boolean }>;
+  /** Porcentagem do download. Devolve a funcao que para de ouvir. */
+  aoProgressoDaAtualizacao: (retorno: (porcentagem: number) => void) => () => void;
 }
 
 declare global {

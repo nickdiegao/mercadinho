@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { DatabaseBackup, FolderOpen, History, Printer } from "lucide-react";
+import { DatabaseBackup, FolderOpen, History, Printer, RefreshCw } from "lucide-react";
 import { fazerBackupAgora, gravarEmpresa, lerSituacaoBackup } from "@/app/acoes-contas";
 import { CamposEmpresa } from "@/components/form-empresa";
 import { Aviso, Botao, Cabecalho, Campo, Cartao, Selecao, TituloCartao } from "@/components/ui";
@@ -29,7 +29,7 @@ export default function Configuracoes() {
         <DadosEmpresa key={estado.empresa.cnpj} inicial={estado.empresa} />
         <Impressora />
         <Backup />
-        <Versao />
+        <Atualizacao />
       </div>
     </>
   );
@@ -207,14 +207,68 @@ function Backup() {
   );
 }
 
-function Versao() {
+function Atualizacao() {
+  type Situacao =
+    | { tom: "nada" }
+    | { tom: "buscando"; pct: number | null }
+    | { tom: "atual" }
+    | { tom: "baixada"; versao: string }
+    | { tom: "erro"; texto: string };
   const [versao, setVersao] = useState<string | null>(null);
+  const [situacao, setSituacao] = useState<Situacao>({ tom: "nada" });
   const programa = eletron();
 
   useEffect(() => {
     void programa?.versao().then(setVersao);
   }, [programa]);
 
-  if (!versao) return null;
-  return <p className="text-[12px] text-suave">Versão {versao}. As atualizações chegam sozinhas quando houver internet.</p>;
+  useEffect(() => {
+    return programa?.aoProgressoDaAtualizacao((pct) => setSituacao({ tom: "buscando", pct }));
+  }, [programa]);
+
+  if (!programa || !versao) return null;
+
+  async function buscar() {
+    setSituacao({ tom: "buscando", pct: null });
+    const r = await programa!.buscarAtualizacao().catch(() => null);
+    if (!r) return setSituacao({ tom: "erro", texto: "Não foi possível procurar atualização." });
+    if (r.estado === "atual") setSituacao({ tom: "atual" });
+    else if (r.estado === "baixada") setSituacao({ tom: "baixada", versao: r.versao ?? "" });
+    else if (r.estado === "ocupado") setSituacao({ tom: "buscando", pct: null });
+    else if (r.estado === "indisponivel") setSituacao({ tom: "erro", texto: "Só funciona no programa instalado." });
+    else setSituacao({ tom: "erro", texto: `Não foi possível atualizar: ${r.erro ?? "sem internet?"}` });
+  }
+
+  const buscando = situacao.tom === "buscando";
+  return (
+    <Cartao>
+      <TituloCartao>Atualização</TituloCartao>
+      <div className="mt-3 flex flex-col gap-3">
+        <p className="text-[13px] leading-relaxed text-tinta2">
+          Versão instalada: <b>{versao}</b>. O sistema procura versão nova sozinho ao abrir, quando há internet.
+        </p>
+        {situacao.tom === "atual" && <Mensagem tom="ok" texto="Está tudo certo: você já usa a versão mais recente." />}
+        {situacao.tom === "erro" && <Mensagem tom="erro" texto={situacao.texto} />}
+        {buscando && (
+          <p className="text-[13px] text-tinta2">
+            {situacao.pct == null ? "Procurando…" : `Baixando a nova versão… ${situacao.pct}%`}
+          </p>
+        )}
+        {situacao.tom === "baixada" && (
+          <Mensagem tom="ok" texto={`A versão ${situacao.versao} está pronta. O sistema fecha, instala e abre de novo; seus dados ficam como estão.`} />
+        )}
+        <div className="flex flex-wrap justify-end gap-2">
+          {situacao.tom === "baixada" ? (
+            <Botao variante="primario" onClick={() => void programa.instalarAtualizacao()}>
+              <RefreshCw size={15} /> Reiniciar e instalar
+            </Botao>
+          ) : (
+            <Botao variante="primario" onClick={() => void buscar()} disabled={buscando}>
+              <RefreshCw size={15} /> {buscando ? "Procurando…" : "Buscar atualizações"}
+            </Botao>
+          )}
+        </div>
+      </div>
+    </Cartao>
+  );
 }
