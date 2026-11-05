@@ -14,7 +14,7 @@
  * nunca vem do formulario, e o que o perfil nao pode mudar e mantido.
  */
 
-import { custoItem, custoUnitBase, novoCustoMedio, paraBase, precoAplicavel } from "./regras";
+import { custoItem, custoUnitBase, novoCustoMedio, paraBase, precoCaixa, precoDoItem } from "./regras";
 import { temEmbalagem } from "./embalagem";
 import { apenasDigitos, validarCNPJ, validarCPF } from "./documentos";
 import { permissoes, type Permissoes } from "./permissoes";
@@ -190,20 +190,21 @@ export function registrarVenda(estado: Estado, ctx: Contexto, d: DadosVenda): Re
       falha(`${p.nome}: a quantidade não fecha embalagens inteiras.`);
 
     // regra de preco no servidor: o valor que veio da tela nao conta
-    const preco = precoAplicavel(p, i.qtd, cliente, i.gelado === true);
+    const preco = precoDoItem(p, i.qtd, i.emEmbalagem === true, i.gelado === true);
+    if (preco.total <= 0) falha(`${p.nome} está sem preço da ${i.emEmbalagem ? "caixa" : "unidade"}.`);
     itens.push({
       id: ctx.novoId("vi"),
       produtoId: p.id,
       descricao: p.nome,
       qtd: i.qtd,
-      precoUnit: preco.preco,
+      precoUnit: preco.precoUnit,
       custoUnit: p.custoMedio, // regra 3: congela o custo aqui
       tipoPrecoAplicado: preco.tipo,
-      ...(i.emEmbalagem
-        ? { embalagem: { unidade: p.unidadeCompra, fator: p.fatorConversao } }
+      ...(preco.precoEmbalagem !== undefined
+        ? { embalagem: { unidade: p.unidadeCompra, fator: p.fatorConversao, preco: preco.precoEmbalagem } }
         : {}),
-      ...(preco.gelado ? { gelado: true, adicionalGelado: preco.preco - preco.natural } : {}),
-      total: Math.round(i.qtd * preco.preco),
+      ...(preco.gelado ? { gelado: true, adicionalGelado: preco.adicionalGelado } : {}),
+      total: preco.total,
     });
 
     // baixa de estoque + casco junto (regra 5)
@@ -571,20 +572,27 @@ export function ajustarEstoque(
 
 const CAMPOS_DE_PRECO = [
   "precoVarejo",
-  "precoAtacado",
+  "descontoCaixa",
   "precoGelado",
+  "descontoCaixaGelado",
   "vendeGelado",
-  "qtdMinimaAtacado",
 ] as const;
 
 function validarProduto(estado: Estado, p: Produto) {
   if (!texto(p.nome)) falha("Informe o nome do produto.");
   if (!inteiro(p.fatorConversao) || p.fatorConversao < 1)
     falha("Quantas unidades vêm em cada embalagem?");
-  for (const c of ["precoVarejo", "precoAtacado"] as const)
-    if (!inteiro(p[c]) || p[c] < 0) falha("Preço inválido.");
+  if (!inteiro(p.precoVarejo) || p.precoVarejo < 0) falha("Preço inválido.");
   if (p.vendeGelado && (!inteiro(p.precoGelado) || (p.precoGelado ?? 0) <= 0))
     falha("Informe o preço gelado ou desmarque a opção.");
+  // a caixa nunca sai mais cara que as unidades soltas, nem de graca
+  for (const gelado of [false, true]) {
+    const desconto = (gelado ? p.descontoCaixaGelado : p.descontoCaixa) ?? 0;
+    if (!inteiro(desconto) || desconto < 0) falha("Desconto da caixa inválido.");
+    const unidade = gelado ? (p.vendeGelado ? (p.precoGelado ?? 0) : 0) : p.precoVarejo;
+    if (desconto > 0 && unidade > 0 && desconto >= unidade * p.fatorConversao)
+      falha(`O desconto da caixa${gelado ? " gelada" : ""} é maior que o preço dela.`);
+  }
   if (!estado.categorias.some((c) => c.id === p.categoriaId)) falha("Categoria inválida.");
   if (p.vasilhameId && !estado.produtos.some((x) => x.id === p.vasilhameId && x.tipo === "VASILHAME"))
     falha("Casco inválido.");
@@ -606,10 +614,11 @@ function camposEditaveis(p: Produto) {
     unidadeCompra: p.unidadeCompra,
     fatorConversao: p.unidadeCompra === "UN" ? 1 : p.fatorConversao,
     precoVarejo: p.precoVarejo,
-    precoAtacado: p.precoAtacado,
+    // sem embalagem nao ha caixa, entao nao ha desconto
+    descontoCaixa: p.unidadeCompra === "UN" ? 0 : (p.descontoCaixa ?? 0),
     precoGelado: p.vendeGelado ? p.precoGelado : undefined,
+    descontoCaixaGelado: p.vendeGelado && p.unidadeCompra !== "UN" ? (p.descontoCaixaGelado ?? 0) : 0,
     vendeGelado: p.vendeGelado === true,
-    qtdMinimaAtacado: p.qtdMinimaAtacado,
     estoqueMinimo: p.estoqueMinimo,
     ncm: texto(p.ncm),
   } satisfies Partial<Produto>;
@@ -647,9 +656,14 @@ export function salvarProduto(estado: Estado, ctx: Contexto, d: { produto: Produ
         "ALTERAR_PRECO",
         "produto",
         final.id,
-        `${final.nome}: varejo ${reais(atual.precoVarejo)} → ${reais(final.precoVarejo)}, ` +
-          `atacado ${reais(atual.precoAtacado)} → ${reais(final.precoAtacado)}` +
-          (final.vendeGelado ? `, gelado ${reais(atual.precoGelado ?? 0)} → ${reais(final.precoGelado ?? 0)}` : ""),
+        `${final.nome}: unidade ${reais(atual.precoVarejo)} → ${reais(final.precoVarejo)}` +
+          (final.fatorConversao > 1 ? `, caixa ${reais(precoCaixa(atual))} → ${reais(precoCaixa(final))}` : "") +
+          (final.vendeGelado
+            ? `, gelado ${reais(atual.precoGelado ?? 0)} → ${reais(final.precoGelado ?? 0)}` +
+              (final.fatorConversao > 1
+                ? `, caixa gelada ${reais(atual.vendeGelado ? precoCaixa(atual, true) : 0)} → ${reais(precoCaixa(final, true))}`
+                : "")
+            : ""),
       ),
     );
 
@@ -692,7 +706,7 @@ export function cadastrarProduto(
   const editado = camposEditaveis(d.produto);
   if (!pode.podeDefinirPreco) {
     // o estoque cadastra sem preco: o produto fica "sem preco" ate a dona definir
-    Object.assign(editado, { precoVarejo: 0, precoAtacado: 0, precoGelado: undefined, vendeGelado: false });
+    Object.assign(editado, { precoVarejo: 0, descontoCaixa: 0, precoGelado: undefined, descontoCaixaGelado: 0, vendeGelado: false });
   }
 
   const ini = d.estoqueInicial;
@@ -792,10 +806,7 @@ export function salvarCliente(estado: Estado, ctx: Contexto, d: { cliente: Clien
     telefone: texto(c.telefone),
     ...(texto(c.email) ? { email: texto(c.email) } : {}),
     endereco: texto(c.endereco),
-    // tabela de preco e limite de fiado: so a dona define
-    tipoPreco: pode.podeDefinirPreco
-      ? c.tipoPreco === "ATACADO" ? "ATACADO" : "VAREJO"
-      : (atual?.tipoPreco ?? "VAREJO"),
+    // limite de fiado: so a dona define
     limiteCredito: limite,
     ativo,
   };
@@ -938,11 +949,13 @@ export interface LinhaImportada {
   fator?: number;
   /** 1/10000 de real por unidade */
   custoUnit?: number;
-  /** centavos */
+  /** centavos: unidade, caixa, unidade gelada e caixa gelada */
   precoVarejo?: number;
-  precoAtacado?: number;
-  qtdMinimaAtacado?: number;
+  precoCaixa?: number;
   precoGelado?: number;
+  precoCaixaGelado?: number;
+  /** Planilha de antes da 0.1.8: atacado por unidade. Vira o preco da caixa. */
+  precoAtacado?: number;
   estoqueMinimo?: number;
 }
 
@@ -960,6 +973,10 @@ const semAcento = (s: string) =>
  * Produtos e precos vindos de uma planilha. Casa a linha com o produto pelo
  * codigo ou pelo nome; o que a planilha deixa em branco nao muda. O saldo
  * nunca vem daqui: so por entrada ou contagem.
+ *
+ * A planilha traz o preco da caixa, o sistema guarda o desconto: a diferenca
+ * entre as unidades soltas e a caixa. Planilha antiga, com atacado por
+ * unidade, continua valendo: a caixa sai pelo atacado x unidades, como era.
  */
 export function importarProdutos(
   estado: Estado,
@@ -989,6 +1006,19 @@ export function importarProdutos(
       return a ? Math.max(m, Number(a[1])) : m;
     }, 0) + 1;
 
+  /** O desconto que leva a caixa pedida. Caixa que nao fica abaixo das unidades fica sem desconto. */
+  function descontoPara(nome: string, rotulo: string, unidade: number, fator: number, caixa: number) {
+    const cheia = unidade * fator;
+    if (caixa <= 0 || caixa > cheia) {
+      resumo.avisos.push(
+        `${nome}: a ${rotulo} de R$ ${reais(caixa)} não fica abaixo das ${fator} unidades soltas ` +
+          `(R$ ${reais(cheia)}); ficou sem desconto.`,
+      );
+      return 0;
+    }
+    return cheia - caixa;
+  }
+
   d.linhas.forEach((l, i) => {
     const linha = i + 1;
     const nome = texto(l.nome);
@@ -1000,7 +1030,7 @@ export function importarProdutos(
     }
     vistos.add(chave);
 
-    for (const c of ["precoVarejo", "precoAtacado", "precoGelado"] as const)
+    for (const c of ["precoVarejo", "precoCaixa", "precoGelado", "precoCaixaGelado", "precoAtacado"] as const)
       if (l[c] !== undefined && (!ehNum(l[c]) || l[c]! < 0 || !Number.isInteger(l[c])))
         falha(`Linha ${linha} (${nome}): preço inválido.`);
     if (l.custoUnit !== undefined && (!ehNum(l.custoUnit) || l.custoUnit < 0 || !Number.isInteger(l.custoUnit)))
@@ -1015,39 +1045,60 @@ export function importarProdutos(
 
     const sku = texto(l.sku ?? "").toLowerCase();
     const atual = (sku ? porSku.get(sku) : undefined) ?? porNome.get(chave);
+    const unidadeCompra = (unidade ?? atual?.unidadeCompra ?? "UN") as Produto["unidadeCompra"];
+    const fator = unidadeCompra === "UN" ? 1 : (l.fator ?? atual?.fatorConversao ?? 1);
+    const precoUnidade = l.precoVarejo ?? atual?.precoVarejo ?? 0;
+    const precoGelado =
+      l.precoGelado && l.precoGelado > 0 ? l.precoGelado : atual?.vendeGelado ? atual.precoGelado : undefined;
+
+    // a caixa: a coluna nova, ou o atacado da planilha antiga x unidades
+    const caixa = l.precoCaixa ?? (l.precoAtacado !== undefined ? l.precoAtacado * fator : undefined);
+    const caixaGelada =
+      l.precoCaixaGelado ??
+      (l.precoAtacado !== undefined && precoGelado
+        ? (l.precoAtacado + Math.max(0, precoGelado - precoUnidade)) * fator
+        : undefined);
+    const desconto =
+      fator > 1 && caixa !== undefined ? descontoPara(nome, "caixa", precoUnidade, fator, caixa) : undefined;
+    const descontoGelado =
+      fator > 1 && caixaGelada !== undefined && precoGelado
+        ? descontoPara(nome, "caixa gelada", precoGelado, fator, caixaGelada)
+        : undefined;
 
     if (atual) {
       const m: Partial<Produto> & { id: string } = { id: atual.id };
-      const unidadeFinal = (unidade ?? atual.unidadeCompra) as Produto["unidadeCompra"];
-      const fatorFinal = unidadeFinal === "UN" ? 1 : (l.fator ?? atual.fatorConversao);
-      if (unidade && unidade !== atual.unidadeCompra) m.unidadeCompra = unidadeFinal;
-      if (fatorFinal !== atual.fatorConversao) m.fatorConversao = fatorFinal;
+      if (unidadeCompra !== atual.unidadeCompra) m.unidadeCompra = unidadeCompra;
+      if (fator !== atual.fatorConversao) m.fatorConversao = fator;
+      if (fator === 1 && atual.descontoCaixa) m.descontoCaixa = 0;
+      if (fator === 1 && atual.descontoCaixaGelado) m.descontoCaixaGelado = 0;
       if (categoriaId && categoriaId !== atual.categoriaId) m.categoriaId = categoriaId;
       if (l.precoVarejo !== undefined && l.precoVarejo !== atual.precoVarejo) m.precoVarejo = l.precoVarejo;
-      if (l.precoAtacado !== undefined && l.precoAtacado !== atual.precoAtacado) m.precoAtacado = l.precoAtacado;
-      if (l.qtdMinimaAtacado !== undefined && l.qtdMinimaAtacado >= 1 && l.qtdMinimaAtacado !== atual.qtdMinimaAtacado)
-        m.qtdMinimaAtacado = l.qtdMinimaAtacado;
+      if (desconto !== undefined && desconto !== atual.descontoCaixa) m.descontoCaixa = desconto;
       if (l.estoqueMinimo !== undefined && l.estoqueMinimo >= 0 && l.estoqueMinimo !== atual.estoqueMinimo)
         m.estoqueMinimo = l.estoqueMinimo;
       if (l.precoGelado !== undefined && l.precoGelado > 0 && (l.precoGelado !== atual.precoGelado || !atual.vendeGelado)) {
         m.precoGelado = l.precoGelado;
         m.vendeGelado = true;
       }
+      if (descontoGelado !== undefined && descontoGelado !== (atual.descontoCaixaGelado ?? 0))
+        m.descontoCaixaGelado = descontoGelado;
       if (l.custoUnit !== undefined && l.custoUnit > 0 && l.custoUnit !== atual.custoMedio) m.custoMedio = l.custoUnit;
 
       if (Object.keys(m).length === 1) {
         resumo.semMudanca++;
         return;
       }
-      // preco novo de varejo num produto sem atacado: o atacado acompanha
-      if (m.precoVarejo !== undefined && m.precoAtacado === undefined && atual.precoAtacado <= 0)
-        m.precoAtacado = m.precoVarejo;
+      const final: Produto = { ...atual, ...m };
+      validarProduto(estado, final);
       mudancas.set(atual.id, m);
       resumo.atualizados++;
       const partes: string[] = [];
-      if (m.precoVarejo !== undefined) partes.push(`varejo ${reais(atual.precoVarejo)} → ${reais(m.precoVarejo)}`);
-      if (m.precoAtacado !== undefined) partes.push(`atacado ${reais(atual.precoAtacado)} → ${reais(m.precoAtacado)}`);
+      if (m.precoVarejo !== undefined) partes.push(`unidade ${reais(atual.precoVarejo)} → ${reais(m.precoVarejo)}`);
+      if (final.fatorConversao > 1 && precoCaixa(final) !== precoCaixa(atual))
+        partes.push(`caixa ${reais(precoCaixa(atual))} → ${reais(precoCaixa(final))}`);
       if (m.precoGelado !== undefined) partes.push(`gelado ${reais(atual.precoGelado ?? 0)} → ${reais(m.precoGelado)}`);
+      if (final.vendeGelado && final.fatorConversao > 1 && precoCaixa(final, true) !== precoCaixa(atual, true))
+        partes.push(`caixa gelada ${reais(precoCaixa(atual, true))} → ${reais(precoCaixa(final, true))}`);
       if (m.custoMedio !== undefined)
         partes.push(
           `custo ${(atual.custoMedio / 10000).toFixed(4).replace(".", ",")} → ${(m.custoMedio / 10000).toFixed(4).replace(".", ",")}`,
@@ -1057,10 +1108,6 @@ export function importarProdutos(
     }
 
     // produto novo
-    const unidadeFinal = (unidade ?? "UN") as Produto["unidadeCompra"];
-    const fator = unidadeFinal === "UN" ? 1 : (l.fator ?? 1);
-    const varejo = l.precoVarejo ?? 0;
-    const gelado = l.precoGelado && l.precoGelado > 0 ? l.precoGelado : undefined;
     const codigoLivre = sku && !porSku.has(sku) ? texto(l.sku ?? "") : "";
     const novo: Produto = {
       id: ctx.novoId("p"),
@@ -1070,14 +1117,14 @@ export function importarProdutos(
       categoriaId: categoriaId ?? categoriaPadrao,
       tipo: "NORMAL",
       unidadeBase: "UN",
-      unidadeCompra: unidadeFinal,
+      unidadeCompra,
       fatorConversao: fator,
       custoMedio: l.custoUnit ?? 0,
       custoUltimaCompra: l.custoUnit ?? 0,
-      precoVarejo: varejo,
-      precoAtacado: l.precoAtacado ?? varejo,
-      ...(gelado ? { precoGelado: gelado, vendeGelado: true } : {}),
-      qtdMinimaAtacado: l.qtdMinimaAtacado && l.qtdMinimaAtacado >= 1 ? l.qtdMinimaAtacado : fator,
+      precoVarejo: precoUnidade,
+      descontoCaixa: desconto ?? 0,
+      descontoCaixaGelado: precoGelado ? (descontoGelado ?? 0) : 0,
+      ...(precoGelado ? { precoGelado, vendeGelado: true } : {}),
       estoqueMinimo: l.estoqueMinimo && l.estoqueMinimo > 0 ? l.estoqueMinimo : 0,
       saldoAtual: 0,
       ncm: "",
@@ -1088,7 +1135,7 @@ export function importarProdutos(
     porNome.set(chave, novo);
     porSku.set(novo.sku.toLowerCase(), novo);
     resumo.criados++;
-    logs.push(registro(ctx, "IMPORTAR_PLANILHA", "produto", novo.id, `${novo.nome}: produto novo (varejo ${reais(novo.precoVarejo)})`));
+    logs.push(registro(ctx, "IMPORTAR_PLANILHA", "produto", novo.id, `${novo.nome}: produto novo (unidade ${reais(novo.precoVarejo)})`));
   });
 
   if (resumo.atualizados + resumo.criados + resumo.semMudanca === 0)

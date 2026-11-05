@@ -22,7 +22,8 @@ import {
   type ReactNode,
 } from "react";
 import { X } from "lucide-react";
-import { DOCUMENTOS_V1, estadoVazio, geladoPadrao, gerarEstado } from "./seed";
+import { estadoVazio, gerarEstado } from "./seed";
+import { migrarDemo } from "./migrar-demo";
 import {
   aplicarEfeitos,
   ErroOperacao,
@@ -136,7 +137,7 @@ export function EstadoProvider({ modo, children }: { modo: Modo; children: React
     let inicial: Estado | null = null;
     try {
       const bruto = window.localStorage.getItem(CHAVE);
-      if (bruto) inicial = migrar(JSON.parse(bruto) as Estado);
+      if (bruto) inicial = migrarDemo(JSON.parse(bruto) as Estado);
     } catch {
       /* localStorage bloqueado ou dado corrompido: cai no seed */
     }
@@ -292,42 +293,6 @@ export function useEstado() {
   const ctx = useContext(EstadoCtx);
   if (!ctx) throw new Error("useEstado precisa estar dentro de EstadoProvider");
   return ctx;
-}
-
-/**
- * Dados salvos antes do preco gelado (versao 1) continuam valendo: os produtos
- * ganham o gelado padrao calculado sobre o preco de varejo de hoje, para nao
- * perder nada do que ja foi lancado na demonstracao.
- */
-function migrar(salvo: Estado | null): Estado | null {
-  if (!salvo || typeof salvo !== "object") return null;
-  if (salvo.versao === 2) return salvo;
-  if (salvo.versao !== 1) return null;
-  // documentos da versao 1 tinham digito verificador errado; num sistema real
-  // documento emitido nunca muda, mas aqui sao todos ficticios da demonstracao
-  const doc = (d: string) => DOCUMENTOS_V1[d] ?? d;
-  return {
-    ...salvo,
-    versao: 2,
-    empresa: { ...salvo.empresa, cnpj: doc(salvo.empresa.cnpj) },
-    clientes: salvo.clientes.map((c) => ({ ...c, cpfCnpj: doc(c.cpfCnpj) })),
-    fornecedores: salvo.fornecedores.map((f) => ({ ...f, cnpj: doc(f.cnpj) })),
-    documentos: salvo.documentos.map((d) => ({
-      ...d,
-      emitenteSnapshot: {
-        ...d.emitenteSnapshot,
-        cnpj: doc(d.emitenteSnapshot.cnpj),
-      },
-      destinatarioSnapshot: d.destinatarioSnapshot
-        ? { ...d.destinatarioSnapshot, cpfCnpj: doc(d.destinatarioSnapshot.cpfCnpj) }
-        : null,
-    })),
-    produtos: salvo.produtos.map((p) => {
-      if (p.vendeGelado !== undefined || p.tipo !== "NORMAL") return p;
-      const g = geladoPadrao(p.nome, p.categoriaId, p.precoVarejo);
-      return g ? { ...p, vendeGelado: true, precoGelado: g } : { ...p, vendeGelado: false };
-    }),
-  };
 }
 
 // ---------------------------------------------------------------- seletores

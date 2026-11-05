@@ -131,6 +131,7 @@ export const clientes = sqliteTable(
     telefone: text("telefone").notNull().default(""),
     email: text("email"),
     endereco: text("endereco").notNull().default(""),
+    /** Fora de uso desde a 0.1.8: o preco depende so de vender em unidade ou caixa. */
     tipoPreco: text("tipo_preco", { enum: TIPOS_PRECO }).notNull().default("VAREJO"),
     limiteCredito: integer("limite_credito").notNull().default(0),
     ativo: sim("ativo").notNull().default(true),
@@ -160,9 +161,15 @@ export const produtos = sqliteTable(
     custoMedio: integer("custo_medio").notNull().default(0),
     custoUltimaCompra: integer("custo_ultima_compra").notNull().default(0),
     precoVarejo: integer("preco_varejo").notNull().default(0),
-    precoAtacado: integer("preco_atacado").notNull().default(0),
+    /** A caixa custa fator x unidade - desconto (lib/regras.ts, precoCaixa). */
+    descontoCaixa: integer("desconto_caixa").notNull().default(0),
     precoGelado: integer("preco_gelado"),
+    descontoCaixaGelado: integer("desconto_caixa_gelado").notNull().default(0),
     vendeGelado: sim("vende_gelado"),
+    // fora de uso desde a 0.1.8, quando o atacado virou o desconto da caixa.
+    // Ficam no banco: tirar exigiria recriar a tabela de produtos com os dados
+    // reais da cliente, e as constraints dela apontam para estas colunas.
+    precoAtacado: integer("preco_atacado").notNull().default(0),
     qtdMinimaAtacado: quantidade("qtd_minima_atacado").notNull(),
     estoqueMinimo: quantidade("estoque_minimo").notNull().default(0),
     /** Cache: a verdade e a soma dos movimentos. */
@@ -311,6 +318,8 @@ export const vendaItens = sqliteTable(
     tipoPrecoAplicado: text("tipo_preco_aplicado", { enum: TIPOS_PRECO }).notNull(),
     embalagemUnidade: text("embalagem_unidade", { enum: UNIDADES_COMPRA }),
     embalagemFator: integer("embalagem_fator"),
+    /** Preco da embalagem congelado. Vazio nas vendas anteriores a 0.1.8. */
+    embalagemPreco: integer("embalagem_preco"),
     gelado: sim("gelado").notNull().default(false),
     adicionalGelado: integer("adicional_gelado"),
     total: integer("total").notNull(),

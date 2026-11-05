@@ -13,6 +13,11 @@
  */
 
 export type Perfil = "ADMIN" | "CAIXA" | "ESTOQUE";
+/**
+ * Como o item saiu: VAREJO = por unidade, ATACADO = na embalagem fechada.
+ * Os nomes vem do modelo antigo de precos e ficaram para o historico continuar
+ * lendo igual; nas telas aparecem como "Unidade" e "Caixa" (CANAL, embalagem.ts).
+ */
 export type TipoPreco = "VAREJO" | "ATACADO";
 export type TipoProduto = "NORMAL" | "VASILHAME";
 export type UnidadeBase = "UN" | "L";
@@ -81,7 +86,6 @@ export interface Cliente {
   telefone: string;
   email?: string;
   endereco: string;
-  tipoPreco: TipoPreco;
   limiteCredito: number; // centavos
   ativo: boolean;
 }
@@ -101,18 +105,23 @@ export interface Produto {
   fatorConversao: number;
   custoMedio: number; // 1/10000 de real
   custoUltimaCompra: number; // 1/10000 de real
-  precoVarejo: number; // centavos
-  precoAtacado: number; // centavos
+  /** Preco natural da unidade avulsa, em centavos. */
+  precoVarejo: number;
   /**
-   * Preco do produto gelado no varejo, em centavos. Preco fixo por decisao do
-   * cliente — o formulario avisa quando fica igual ou abaixo do varejo natural.
-   * Na caixa gelada (atacado), soma-se ao atacado a diferenca gelado - varejo:
-   * ver `acrescimoGelado` em regras.ts.
+   * Desconto da embalagem fechada, em centavos por embalagem. A caixa custa
+   * fator x unidade - desconto (`precoCaixa` em regras.ts). Guardar o desconto,
+   * e nao o preco da caixa, faz a caixa acompanhar quando a unidade muda.
+   */
+  descontoCaixa: number;
+  /**
+   * Preco da unidade gelada, em centavos. Preco fixo por decisao do cliente —
+   * o formulario avisa quando fica igual ou abaixo do natural.
    */
   precoGelado?: number;
+  /** O mesmo desconto, para a caixa gelada. Zero quando nao vende gelado. */
+  descontoCaixaGelado: number;
   /** Carvao, gelo e refresco em po nao gelam. Ausente = nao vende gelado. */
   vendeGelado?: boolean;
-  qtdMinimaAtacado: number;
   estoqueMinimo: number;
   saldoAtual: number; // cache — a verdade e a soma dos movimentos
   ncm: string;
@@ -153,11 +162,12 @@ export interface VendaItem {
   custoUnit: number; // 1/10000 de real
   tipoPrecoAplicado: TipoPreco;
   /**
-   * Vendido em embalagem fechada (2 caixas de 12). `qtd` continua em unidade;
-   * isto so diz como a quantidade foi escolhida, para o recibo mostrar
-   * "2 CX" em vez de "24 UN". Ausente = vendido por unidade.
+   * Vendido em embalagem fechada (2 caixas de 12). `qtd` continua em unidade.
+   * `preco` e o da embalagem, congelado: o total e caixas x preco, porque
+   * R$ 55,00 / 12 nao fecha em centavos. Vendas anteriores a 0.1.8 nao tem
+   * `preco` — nelas a caixa vale precoUnit x fator. Ausente = por unidade.
    */
-  embalagem?: { unidade: UnidadeCompra; fator: number };
+  embalagem?: { unidade: UnidadeCompra; fator: number; preco?: number };
   /** Saiu gelado — lata avulsa ou caixa fechada. */
   gelado?: boolean;
   /**

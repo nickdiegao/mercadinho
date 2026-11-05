@@ -1,7 +1,7 @@
 # Distribuidora — mockup de demonstração
 
 Sistema de controle de estoque, vendas, caixa e lucro para uma distribuidora de
-bebidas que vende no atacado e no varejo ao mesmo tempo.
+bebidas que vende a unidade avulsa e a caixa fechada ao mesmo tempo.
 
 O sistema roda de dois jeitos, com o mesmo código:
 
@@ -177,12 +177,12 @@ sistema em cinco minutos:
 
 1. **Painel** — vendas do dia, lucro, valor do estoque e cascos na rua.
 2. **Nova venda** — busque `600ml` e toque em **+ 1 eng** na cerveja em
-   garrafa. Sai um engradado de 24, o preço vira **atacado sozinho** e aparece o
+   garrafa. Sai um engradado de 24 pelo **preço do engradado** e aparece o
    aviso de que saem 24 cascos junto. Cada item troca entre **Unidade** e a
    embalagem dele (caixa, fardo, engradado) a qualquer momento.
 3. **Gelado** — adicione uma lata avulsa e toque em **gelado**: o preço passa
-   para o gelado. Troque para **Caixa c/ 12**: ela vira atacado e continua
-   gelada, pelo atacado mais o acréscimo do gelado.
+   para o gelado. Troque para **Caixa c/ 12**: ela sai pelo preço da caixa
+   gelada.
 4. **Finalizar** — cai no recibo, com CNPJ, descrição, valores e o total por
    extenso. Dali sai para imprimir, salvar em PDF ou mandar no **WhatsApp**.
 5. **Cancelar venda** (admin, no recibo) — as unidades voltam ao estoque, o
@@ -195,7 +195,7 @@ sistema em cinco minutos:
    cadastra ali mesmo, sem sair da tela.
 8. **Clientes → Novo cliente** — digite um CNPJ e clique em **Buscar**: razão
    social e endereço vêm da Receita.
-9. **Relatórios** — atacado × varejo, curva ABC, o cartão "a geladeira se
+9. **Relatórios** — caixa × unidade, curva ABC, o cartão "a geladeira se
    paga?" e os três botões de exportação.
 10. **Trocar de perfil → Marcos (caixa)** — repare que custo, margem, lucro e o
     menu de relatórios **somem**.
@@ -239,19 +239,40 @@ recibo sair com `2 CX c/ 12` e o valor da caixa, em vez de `24 UN`. Na entrada,
 a mercadoria avulsa (6 garrafas) entra com quantidade e custo por unidade.
 As regras ficam em [`lib/embalagem.ts`](lib/embalagem.ts).
 
+### Preço da unidade e da caixa
+
+Cada produto tem o **preço natural da unidade** e, embaixo, o **preço da caixa**
+(ou fardo, engradado). A caixa nasce calculada — unidade × quantidade — e pode
+ser editada; o botão **Desconto** deixa digitar o desconto em reais. Editar a
+caixa e digitar o desconto são o mesmo ajuste: um calcula o outro.
+
+O banco guarda **o desconto**, não o preço da caixa (`produto.descontoCaixa`).
+Por isso a caixa acompanha quando a unidade muda: com unidade 5,00 e desconto
+6,00, a caixa de 12 sai a 54,00; se a unidade subir para 5,50, ela vai para 60,00
+e mantém o mesmo desconto. A caixa nunca sai mais cara que as unidades soltas
+(`precoCaixa` em [`lib/regras.ts`](lib/regras.ts)).
+
+Na venda vale como o item saiu: por unidade, o preço da unidade; na caixa
+fechada, o da caixa. Doze latas soltas pagam doze unidades — a caixa só vale
+quando se escolhe vender a caixa. O item guarda o preço da caixa
+(`venda_item.embalagem.preco`) e o total é caixas × preço, porque R$ 54,00 ÷ 12
+não fecha em centavos. Uma regra só (`precoDoItem`) calcula o preço na tela, no
+servidor e na demonstração.
+
+Até a 0.1.7 havia varejo, atacado por unidade e cliente com tabela de atacado.
+A migração `drizzle/0003` converteu o atacado em desconto da caixa sem mudar
+nenhum preço; as vendas antigas ficam como estão, e os relatórios mostram
+"caixa × unidade" no lugar de "atacado × varejo".
+
 ### Preço gelado
 
-Terceiro preço fixo do produto, ao lado do varejo e do atacado — cobre a energia
-de manter a bebida na geladeira. Na lata avulsa vale o preço gelado do cadastro.
-Na **caixa ou fardo gelado** (venda no atacado), vale o atacado mais o mesmo
-acréscimo por unidade (gelado − varejo): a geladeira gasta o mesmo por lata.
-Com varejo 4,50, atacado 3,80 e gelado 5,20, a caixa gelada sai a 4,50 por
-unidade. Quanto o gelado rendeu a mais fica congelado no item
-(`venda_item.adicionalGelado`, sobre o natural do mesmo canal), e é isso que o
-relatório compara com a conta de luz.
+O gelado tem o mesmo par: **unidade gelada** e **caixa gelada**, com desconto
+próprio. Cobre a energia de manter a bebida na geladeira. Quanto o gelado rendeu
+a mais fica congelado no item (`venda_item.adicionalGelado`, sobre o natural da
+mesma forma de venda), e é isso que o relatório compara com a conta de luz.
 
-Por ser um preço fixo, ele não acompanha o varejo sozinho: se o varejo subir e
-o gelado não, o cadastro avisa e a lista de produtos marca o item.
+O preço da unidade gelada é fixo: se a unidade natural subir e a gelada não, o
+cadastro avisa e a lista de produtos marca o item.
 
 ### Quem cadastra o quê
 
@@ -259,7 +280,7 @@ o gelado não, o cadastro avisa e a lista de produtos marca o item.
 |---|---|---|
 | Produto | admin e estoque | Só a admin define preço; sem preço, o caixa não consegue vender |
 | Fornecedor | admin e estoque | CNPJ obrigatório, com consulta à Receita |
-| Cliente | admin e caixa | Tabela de preço e limite de fiado, só a admin |
+| Cliente | admin e caixa | Limite de fiado, só a admin |
 
 Produto pode ser cadastrado antes de chegar: o formulário pergunta se já tem no
 depósito. Com **Ainda não**, ele nasce com saldo zero e a etiqueta **aguarda 1ª

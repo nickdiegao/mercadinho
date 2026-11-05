@@ -101,11 +101,10 @@ export function porCategoria(estado: Estado, vendas: Venda[]) {
   return [...acc.values()].sort((a, b) => b.receita - a.receita);
 }
 
-/** Separa atacado de varejo — a leitura que o dono mais pede. */
 /**
  * Quanto o gelado rendeu a mais. Soma o adicional congelado em cada item —
- * a diferenca entre o preco gelado e o natural do mesmo canal no dia da
- * venda. E o numero que a dona compara com a conta de luz da geladeira.
+ * a diferenca entre o preco gelado e o natural da mesma forma de venda (unidade
+ * ou caixa) no dia da venda. E o numero que a dona compara com a conta de luz.
  */
 export function resumoGelado(vendas: Venda[]) {
   let avulsas = 0;
@@ -123,15 +122,16 @@ export function resumoGelado(vendas: Venda[]) {
   }
   return {
     unidades: avulsas + emCaixa,
-    /** varejo: lata ou garrafa avulsa */
+    /** lata ou garrafa avulsa */
     avulsas,
-    /** atacado: caixa ou fardo gelado */
+    /** caixa ou fardo gelado */
     emCaixa,
     receita,
     adicional,
   };
 }
 
+/** Separa caixa de unidade — a leitura que o dono mais pede. */
 export function porCanal(vendas: Venda[]) {
   const zera = () => ({ receita: 0, lucro: 0, itens: 0 });
   const canais: Record<TipoPreco, ReturnType<typeof zera>> = {

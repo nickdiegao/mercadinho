@@ -101,7 +101,6 @@ export function ReciboBobina({
 
       <section className="recibo-bloco">
         <Linha rotulo="Pagamento" valor={pagamento} />
-        <Linha rotulo="Tabela" valor={venda.tipoPreco === "ATACADO" ? "Atacado" : "Varejo"} />
         {operador && <Linha rotulo="Operador" valor={operador} />}
       </section>
 

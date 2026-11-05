@@ -20,6 +20,7 @@ import {
   vendasEntre,
 } from "@/lib/consultas";
 import { moeda, numero, porcento, hora } from "@/lib/formato";
+import { CANAL } from "@/lib/embalagem";
 
 const GraficoVendas = dynamic(() => import("@/components/grafico-vendas"), {
   ssr: false,
@@ -288,7 +289,7 @@ export default function Painel() {
                           {String(v.numero).padStart(5, "0")}
                         </span>
                         <Etiqueta tom={v.tipoPreco === "ATACADO" ? "marca" : "neutro"}>
-                          {v.tipoPreco}
+                          {CANAL[v.tipoPreco]}
                         </Etiqueta>
                       </span>
                     </span>

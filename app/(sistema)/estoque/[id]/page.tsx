@@ -6,7 +6,8 @@ import { ArrowLeft, SlidersHorizontal } from "lucide-react";
 import { useEstado, usePerfil } from "@/lib/store";
 import { extrato } from "@/lib/consultas";
 import { moeda, numero, custoCurto, moeda4, dataHora } from "@/lib/formato";
-import { margem, precisaRepor } from "@/lib/regras";
+import { margem, precisaRepor, precoCaixa } from "@/lib/regras";
+import { rotuloEmbalagem } from "@/lib/embalagem";
 import type { Estado, TipoMovimento } from "@/lib/tipos";
 import {
   Aviso,
@@ -185,7 +186,7 @@ export default function Kardex({ params }: { params: Promise<{ id: string }> }) 
           <>
             <Cartao>
               <p className="text-[11px] font-bold uppercase tracking-[0.09em] text-suave">
-                Preço varejo
+                Preço da unidade
               </p>
               <p className="tabular mt-2 text-[26px] font-semibold leading-none text-tinta">
                 {moeda(produto.precoVarejo)}
@@ -196,19 +197,21 @@ export default function Kardex({ params }: { params: Promise<{ id: string }> }) 
                 </p>
               )}
             </Cartao>
-            <Cartao>
-              <p className="text-[11px] font-bold uppercase tracking-[0.09em] text-suave">
-                Preço atacado
-              </p>
-              <p className="tabular mt-2 text-[26px] font-semibold leading-none text-marca">
-                {moeda(produto.precoAtacado)}
-              </p>
-              <p className="mt-2 text-xs text-suave">
-                a partir de {numero(produto.qtdMinimaAtacado)} un
-                {podeVerCusto &&
-                  ` · margem ${(margem(produto.precoAtacado, produto.custoMedio) * 100).toFixed(1)}%`}
-              </p>
-            </Cartao>
+            {produto.fatorConversao > 1 && (
+              <Cartao>
+                <p className="text-[11px] font-bold uppercase tracking-[0.09em] text-suave">
+                  Preço {rotuloEmbalagem(produto.unidadeCompra).toLowerCase()} c/ {produto.fatorConversao}
+                </p>
+                <p className="tabular mt-2 text-[26px] font-semibold leading-none text-marca">
+                  {moeda(precoCaixa(produto))}
+                </p>
+                <p className="mt-2 text-xs text-suave">
+                  {produto.descontoCaixa > 0 ? `${moeda(produto.descontoCaixa)} de desconto` : "sem desconto"}
+                  {podeVerCusto &&
+                    ` · margem ${(margem(precoCaixa(produto) / produto.fatorConversao, produto.custoMedio) * 100).toFixed(1)}%`}
+                </p>
+              </Cartao>
+            )}
           </>
         )}
       </div>

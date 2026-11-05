@@ -14,6 +14,7 @@ import {
 } from "@/lib/consultas";
 import { baixarCsv, baixarExcel, imprimirPdf, type Relatorio } from "@/lib/exportar";
 import { moeda, numero, porcento, data } from "@/lib/formato";
+import { CANAL } from "@/lib/embalagem";
 import { Lista, type ColunaLista } from "@/components/lista";
 import {
   Barra,
@@ -281,7 +282,7 @@ export default function Relatorios() {
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Cartao>
-          <TituloCartao>Atacado × varejo</TituloCartao>
+          <TituloCartao>Caixa × unidade</TituloCartao>
           {receitaCanais === 0 ? (
             <p className="text-sm text-suave">Sem vendas no período.</p>
           ) : (
@@ -292,7 +293,7 @@ export default function Relatorios() {
                 return (
                   <div key={c}>
                     <div className="mb-1.5 flex items-baseline justify-between gap-3">
-                      <Etiqueta tom={c === "ATACADO" ? "marca" : "neutro"}>{c}</Etiqueta>
+                      <Etiqueta tom={c === "ATACADO" ? "marca" : "neutro"}>{CANAL[c]}</Etiqueta>
                       <span className="tabular text-[13.5px] font-semibold">
                         {moeda(v.receita)}
                         <span className="ml-2 font-normal text-suave">
@@ -308,9 +309,9 @@ export default function Relatorios() {
                 );
               })}
               <p className="border-t border-borda pt-3 text-[12.5px] leading-relaxed text-suave">
-                O atacado costuma girar mais volume com margem menor. Separar os
-                dois canais é o que mostra se vale a pena empurrar caixa fechada
-                ou vender no balcão.
+                A caixa costuma girar mais volume com margem menor. Separar as
+                duas formas de venda é o que mostra se vale a pena empurrar caixa
+                fechada ou vender no balcão.
               </p>
             </div>
           )}

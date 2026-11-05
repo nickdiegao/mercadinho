@@ -12,7 +12,7 @@
  * verdade, entao a demo e sempre a mesma dentro do mesmo dia.
  */
 
-import { custoUnitBase, novoCustoMedio, paraBase, precoAplicavel, totalItem, custoItem } from "./regras";
+import { custoUnitBase, novoCustoMedio, paraBase, precoDoItem, custoItem } from "./regras";
 import type {
   CaixaMovimento,
   CaixaSessao,
@@ -88,58 +88,61 @@ const fornecedores: Fornecedor[] = [
 ];
 
 const clientes: Cliente[] = [
-  { id: "cl_1", tipo: "PJ", nomeRazao: "Bar do Zeca Ltda ME", cpfCnpj: "97.808.114/0001-02", inscricaoEstadual: "336.902.114.005", telefone: "(19) 99771-4402", email: "bardozeca@gmail.com", endereco: "Rua Sete de Setembro, 340 — Centro, Campinas/SP", tipoPreco: "ATACADO", limiteCredito: 300000, ativo: true },
-  { id: "cl_2", tipo: "PJ", nomeRazao: "Mercearia Santa Luzia Ltda", cpfCnpj: "97.447.290/0001-58", inscricaoEstadual: "224.881.007.339", telefone: "(19) 3226-7781", email: "santaluzia@uol.com.br", endereco: "Av. Brasil, 1180 — Jd. Chapadão, Campinas/SP", tipoPreco: "ATACADO", limiteCredito: 500000, ativo: true },
-  { id: "cl_3", tipo: "PJ", nomeRazao: "Restaurante Sabor Mineiro Eireli", cpfCnpj: "97.129.760/0001-35", inscricaoEstadual: "441.205.998.220", telefone: "(19) 3244-1190", email: "sabormineiro@hotmail.com", endereco: "Rua Barão de Jaguara, 902 — Centro, Campinas/SP", tipoPreco: "ATACADO", limiteCredito: 400000, ativo: true },
-  { id: "cl_4", tipo: "PJ", nomeRazao: "Conveniência Posto Ipê Ltda", cpfCnpj: "97.663.508/0001-01", inscricaoEstadual: "118.774.320.661", telefone: "(19) 3877-2200", email: "postoipe@terra.com.br", endereco: "Rod. Dom Pedro I, km 132 — Campinas/SP", tipoPreco: "ATACADO", limiteCredito: 600000, ativo: true },
-  { id: "cl_5", tipo: "PJ", nomeRazao: "Adega Vinho & Cia Ltda ME", cpfCnpj: "97.220.877/0001-20", inscricaoEstadual: "552.019.443.870", telefone: "(19) 98812-3355", email: "adegavinhoecia@gmail.com", endereco: "Rua Coronel Quirino, 1455 — Cambuí, Campinas/SP", tipoPreco: "ATACADO", limiteCredito: 250000, ativo: true },
-  { id: "cl_6", tipo: "PJ", nomeRazao: "Lanchonete Estrela Azul Ltda", cpfCnpj: "97.905.332/0001-57", inscricaoEstadual: "667.443.001.229", telefone: "(19) 3255-8890", email: "estrelaazul@bol.com.br", endereco: "Av. John Boyd Dunlop, 3200 — Campinas/SP", tipoPreco: "ATACADO", limiteCredito: 200000, ativo: true },
-  { id: "cl_7", tipo: "PJ", nomeRazao: "Buffet Recanto das Flores Ltda", cpfCnpj: "97.774.019/0001-27", inscricaoEstadual: "993.107.556.418", telefone: "(19) 3298-4471", email: "recantodasflores@gmail.com", endereco: "Estrada da Rhodia, 890 — Barão Geraldo, Campinas/SP", tipoPreco: "ATACADO", limiteCredito: 350000, ativo: true },
-  { id: "cl_8", tipo: "PF", nomeRazao: "Cláudia Ferreira Lima", cpfCnpj: "324.887.109-11", telefone: "(19) 99120-8834", endereco: "Rua das Acácias, 88 — Jd. Nova Europa, Campinas/SP", tipoPreco: "VAREJO", limiteCredito: 0, ativo: true },
-  { id: "cl_9", tipo: "PF", nomeRazao: "Roberto Salgado Pinheiro", cpfCnpj: "118.442.907-35", telefone: "(19) 98844-1207", endereco: "Rua Tiradentes, 415 — Vila Industrial, Campinas/SP", tipoPreco: "VAREJO", limiteCredito: 0, ativo: true },
-  { id: "cl_10", tipo: "PF", nomeRazao: "Simone Duarte Nogueira", cpfCnpj: "907.331.228-09", telefone: "(19) 99655-7710", endereco: "Av. Orosimbo Maia, 2200 — Centro, Campinas/SP", tipoPreco: "VAREJO", limiteCredito: 0, ativo: true },
-  { id: "cl_11", tipo: "PF", nomeRazao: "Edson Batista da Silva", cpfCnpj: "445.019.663-51", telefone: "(19) 98330-9925", endereco: "Rua Amoreiras, 76 — Jd. Aurélia, Campinas/SP", tipoPreco: "VAREJO", limiteCredito: 0, ativo: true },
-  { id: "cl_12", tipo: "PF", nomeRazao: "Patrícia Moraes Tavares", cpfCnpj: "662.774.310-80", telefone: "(19) 99441-2038", endereco: "Rua Sales de Oliveira, 1290 — Vila Industrial, Campinas/SP", tipoPreco: "VAREJO", limiteCredito: 0, ativo: true },
+  { id: "cl_1", tipo: "PJ", nomeRazao: "Bar do Zeca Ltda ME", cpfCnpj: "97.808.114/0001-02", inscricaoEstadual: "336.902.114.005", telefone: "(19) 99771-4402", email: "bardozeca@gmail.com", endereco: "Rua Sete de Setembro, 340 — Centro, Campinas/SP", limiteCredito: 300000, ativo: true },
+  { id: "cl_2", tipo: "PJ", nomeRazao: "Mercearia Santa Luzia Ltda", cpfCnpj: "97.447.290/0001-58", inscricaoEstadual: "224.881.007.339", telefone: "(19) 3226-7781", email: "santaluzia@uol.com.br", endereco: "Av. Brasil, 1180 — Jd. Chapadão, Campinas/SP", limiteCredito: 500000, ativo: true },
+  { id: "cl_3", tipo: "PJ", nomeRazao: "Restaurante Sabor Mineiro Eireli", cpfCnpj: "97.129.760/0001-35", inscricaoEstadual: "441.205.998.220", telefone: "(19) 3244-1190", email: "sabormineiro@hotmail.com", endereco: "Rua Barão de Jaguara, 902 — Centro, Campinas/SP", limiteCredito: 400000, ativo: true },
+  { id: "cl_4", tipo: "PJ", nomeRazao: "Conveniência Posto Ipê Ltda", cpfCnpj: "97.663.508/0001-01", inscricaoEstadual: "118.774.320.661", telefone: "(19) 3877-2200", email: "postoipe@terra.com.br", endereco: "Rod. Dom Pedro I, km 132 — Campinas/SP", limiteCredito: 600000, ativo: true },
+  { id: "cl_5", tipo: "PJ", nomeRazao: "Adega Vinho & Cia Ltda ME", cpfCnpj: "97.220.877/0001-20", inscricaoEstadual: "552.019.443.870", telefone: "(19) 98812-3355", email: "adegavinhoecia@gmail.com", endereco: "Rua Coronel Quirino, 1455 — Cambuí, Campinas/SP", limiteCredito: 250000, ativo: true },
+  { id: "cl_6", tipo: "PJ", nomeRazao: "Lanchonete Estrela Azul Ltda", cpfCnpj: "97.905.332/0001-57", inscricaoEstadual: "667.443.001.229", telefone: "(19) 3255-8890", email: "estrelaazul@bol.com.br", endereco: "Av. John Boyd Dunlop, 3200 — Campinas/SP", limiteCredito: 200000, ativo: true },
+  { id: "cl_7", tipo: "PJ", nomeRazao: "Buffet Recanto das Flores Ltda", cpfCnpj: "97.774.019/0001-27", inscricaoEstadual: "993.107.556.418", telefone: "(19) 3298-4471", email: "recantodasflores@gmail.com", endereco: "Estrada da Rhodia, 890 — Barão Geraldo, Campinas/SP", limiteCredito: 350000, ativo: true },
+  { id: "cl_8", tipo: "PF", nomeRazao: "Cláudia Ferreira Lima", cpfCnpj: "324.887.109-11", telefone: "(19) 99120-8834", endereco: "Rua das Acácias, 88 — Jd. Nova Europa, Campinas/SP", limiteCredito: 0, ativo: true },
+  { id: "cl_9", tipo: "PF", nomeRazao: "Roberto Salgado Pinheiro", cpfCnpj: "118.442.907-35", telefone: "(19) 98844-1207", endereco: "Rua Tiradentes, 415 — Vila Industrial, Campinas/SP", limiteCredito: 0, ativo: true },
+  { id: "cl_10", tipo: "PF", nomeRazao: "Simone Duarte Nogueira", cpfCnpj: "907.331.228-09", telefone: "(19) 99655-7710", endereco: "Av. Orosimbo Maia, 2200 — Centro, Campinas/SP", limiteCredito: 0, ativo: true },
+  { id: "cl_11", tipo: "PF", nomeRazao: "Edson Batista da Silva", cpfCnpj: "445.019.663-51", telefone: "(19) 98330-9925", endereco: "Rua Amoreiras, 76 — Jd. Aurélia, Campinas/SP", limiteCredito: 0, ativo: true },
+  { id: "cl_12", tipo: "PF", nomeRazao: "Patrícia Moraes Tavares", cpfCnpj: "662.774.310-80", telefone: "(19) 99441-2038", endereco: "Rua Sales de Oliveira, 1290 — Vila Industrial, Campinas/SP", limiteCredito: 0, ativo: true },
 ];
 
-/** [nome, categoria, unCompra, fator, custoCompraCentavos, varejo, atacado, minAtacado, estMin, ncm, vasilhame?] */
-type LinhaProduto = [string, string, string, number, number, number, number, number, number, string, string?];
+/**
+ * [nome, categoria, unCompra, fator, custoCompraCentavos, unidade, caixaPorUnidade, estMin, ncm, vasilhame?]
+ * caixaPorUnidade e o preco da caixa dividido pelas unidades: vira o desconto da caixa.
+ */
+type LinhaProduto = [string, string, string, number, number, number, number, number, string, string?];
 
 const CATALOGO: LinhaProduto[] = [
-  ["Cerveja Pilsen Lata 350ml", "c_cerveja", "CX", 12, 3840, 450, 380, 12, 240, "2203.00.00"],
-  ["Cerveja Pilsen Lata 473ml", "c_cerveja", "CX", 12, 5040, 590, 500, 12, 180, "2203.00.00"],
-  ["Cerveja Pilsen Garrafa 600ml", "c_cerveja", "ENG", 24, 9120, 550, 460, 24, 240, "2203.00.00", "v_600"],
-  ["Cerveja Puro Malte Lata 350ml", "c_cerveja", "CX", 12, 4560, 520, 440, 12, 144, "2203.00.00"],
-  ["Cerveja Puro Malte Long Neck 355ml", "c_cerveja", "CX", 24, 10800, 650, 550, 24, 120, "2203.00.00"],
-  ["Cerveja de Trigo Long Neck 355ml", "c_cerveja", "CX", 24, 14880, 890, 760, 24, 72, "2203.00.00"],
-  ["Cerveja Sem Álcool Lata 350ml", "c_cerveja", "CX", 12, 4200, 490, 420, 12, 96, "2202.91.00"],
-  ["Cerveja Pilsen Litrão 1L", "c_cerveja", "ENG", 12, 7440, 890, 750, 12, 120, "2203.00.00", "v_1l"],
-  ["Coca-Cola 2L", "c_refri", "FD", 6, 4740, 1090, 920, 6, 90, "2202.10.00"],
-  ["Coca-Cola Lata 350ml", "c_refri", "CX", 12, 3120, 390, 320, 12, 144, "2202.10.00"],
-  ["Coca-Cola 600ml", "c_refri", "FD", 12, 4560, 550, 460, 12, 120, "2202.10.00"],
-  ["Refrigerante Guaraná 2L", "c_refri", "FD", 6, 4320, 990, 850, 6, 90, "2202.10.00"],
-  ["Refrigerante Guaraná Lata 350ml", "c_refri", "CX", 12, 2880, 350, 300, 12, 144, "2202.10.00"],
-  ["Refrigerante Laranja 2L", "c_refri", "FD", 6, 4140, 950, 810, 6, 60, "2202.10.00"],
-  ["Refrigerante Limão 2L", "c_refri", "FD", 6, 4140, 950, 810, 6, 60, "2202.10.00"],
-  ["Refrigerante Uva 2L", "c_refri", "FD", 6, 4200, 960, 820, 6, 60, "2202.10.00"],
-  ["Água Mineral sem Gás 500ml", "c_agua", "FD", 12, 1440, 250, 180, 12, 240, "2201.10.00"],
-  ["Água Mineral sem Gás 1,5L", "c_agua", "FD", 6, 1380, 390, 310, 6, 120, "2201.10.00"],
-  ["Água Mineral com Gás 500ml", "c_agua", "FD", 12, 1800, 290, 220, 12, 120, "2201.10.00"],
-  ["Água de Coco 1L", "c_agua", "CX", 12, 8280, 990, 850, 12, 72, "2009.89.00"],
-  ["Energético Lata 250ml", "c_energ", "CX", 24, 11520, 750, 620, 24, 120, "2202.99.00"],
-  ["Energético Lata 473ml", "c_energ", "CX", 12, 9480, 1190, 990, 12, 72, "2202.99.00"],
-  ["Energético Tropical 269ml", "c_energ", "CX", 24, 10080, 690, 560, 24, 96, "2202.99.00"],
-  ["Suco de Uva Integral 1L", "c_suco", "CX", 12, 10680, 1290, 1090, 12, 60, "2009.61.00"],
-  ["Suco de Laranja 1L", "c_suco", "CX", 12, 7440, 890, 760, 12, 72, "2009.12.00"],
-  ["Néctar de Manga 1L", "c_suco", "CX", 12, 5400, 690, 570, 12, 60, "2009.89.00"],
-  ["Refresco em Pó Sortido 25g", "c_suco", "CX", 15, 1350, 180, 130, 15, 150, "2106.90.00"],
-  ["Cachaça Prata 965ml", "c_dest", "CX", 12, 14280, 1790, 1490, 12, 48, "2208.40.00"],
-  ["Vodka Nacional 900ml", "c_dest", "CX", 6, 14940, 3690, 3090, 6, 24, "2208.60.00"],
-  ["Whisky Nacional 1L", "c_dest", "CX", 6, 23940, 5690, 4890, 6, 18, "2208.30.00"],
-  ["Gin Nacional 750ml", "c_dest", "CX", 6, 19740, 4890, 4190, 6, 18, "2208.50.00"],
-  ["Rum Nacional 700ml", "c_dest", "CX", 6, 16740, 3990, 3390, 6, 18, "2208.40.00"],
-  ["Gelo em Cubo 5kg", "c_outros", "UN", 1, 480, 900, 700, 10, 60, "2201.90.00"],
-  ["Carvão Vegetal 3kg", "c_outros", "UN", 1, 890, 1490, 1200, 10, 40, "4402.90.00"],
+  ["Cerveja Pilsen Lata 350ml", "c_cerveja", "CX", 12, 3840, 450, 380, 240, "2203.00.00"],
+  ["Cerveja Pilsen Lata 473ml", "c_cerveja", "CX", 12, 5040, 590, 500, 180, "2203.00.00"],
+  ["Cerveja Pilsen Garrafa 600ml", "c_cerveja", "ENG", 24, 9120, 550, 460, 240, "2203.00.00", "v_600"],
+  ["Cerveja Puro Malte Lata 350ml", "c_cerveja", "CX", 12, 4560, 520, 440, 144, "2203.00.00"],
+  ["Cerveja Puro Malte Long Neck 355ml", "c_cerveja", "CX", 24, 10800, 650, 550, 120, "2203.00.00"],
+  ["Cerveja de Trigo Long Neck 355ml", "c_cerveja", "CX", 24, 14880, 890, 760, 72, "2203.00.00"],
+  ["Cerveja Sem Álcool Lata 350ml", "c_cerveja", "CX", 12, 4200, 490, 420, 96, "2202.91.00"],
+  ["Cerveja Pilsen Litrão 1L", "c_cerveja", "ENG", 12, 7440, 890, 750, 120, "2203.00.00", "v_1l"],
+  ["Coca-Cola 2L", "c_refri", "FD", 6, 4740, 1090, 920, 90, "2202.10.00"],
+  ["Coca-Cola Lata 350ml", "c_refri", "CX", 12, 3120, 390, 320, 144, "2202.10.00"],
+  ["Coca-Cola 600ml", "c_refri", "FD", 12, 4560, 550, 460, 120, "2202.10.00"],
+  ["Refrigerante Guaraná 2L", "c_refri", "FD", 6, 4320, 990, 850, 90, "2202.10.00"],
+  ["Refrigerante Guaraná Lata 350ml", "c_refri", "CX", 12, 2880, 350, 300, 144, "2202.10.00"],
+  ["Refrigerante Laranja 2L", "c_refri", "FD", 6, 4140, 950, 810, 60, "2202.10.00"],
+  ["Refrigerante Limão 2L", "c_refri", "FD", 6, 4140, 950, 810, 60, "2202.10.00"],
+  ["Refrigerante Uva 2L", "c_refri", "FD", 6, 4200, 960, 820, 60, "2202.10.00"],
+  ["Água Mineral sem Gás 500ml", "c_agua", "FD", 12, 1440, 250, 180, 240, "2201.10.00"],
+  ["Água Mineral sem Gás 1, 5L", "c_agua", "FD", 6, 1380, 390, 310, 120, "2201.10.00"],
+  ["Água Mineral com Gás 500ml", "c_agua", "FD", 12, 1800, 290, 220, 120, "2201.10.00"],
+  ["Água de Coco 1L", "c_agua", "CX", 12, 8280, 990, 850, 72, "2009.89.00"],
+  ["Energético Lata 250ml", "c_energ", "CX", 24, 11520, 750, 620, 120, "2202.99.00"],
+  ["Energético Lata 473ml", "c_energ", "CX", 12, 9480, 1190, 990, 72, "2202.99.00"],
+  ["Energético Tropical 269ml", "c_energ", "CX", 24, 10080, 690, 560, 96, "2202.99.00"],
+  ["Suco de Uva Integral 1L", "c_suco", "CX", 12, 10680, 1290, 1090, 60, "2009.61.00"],
+  ["Suco de Laranja 1L", "c_suco", "CX", 12, 7440, 890, 760, 72, "2009.12.00"],
+  ["Néctar de Manga 1L", "c_suco", "CX", 12, 5400, 690, 570, 60, "2009.89.00"],
+  ["Refresco em Pó Sortido 25g", "c_suco", "CX", 15, 1350, 180, 130, 150, "2106.90.00"],
+  ["Cachaça Prata 965ml", "c_dest", "CX", 12, 14280, 1790, 1490, 48, "2208.40.00"],
+  ["Vodka Nacional 900ml", "c_dest", "CX", 6, 14940, 3690, 3090, 24, "2208.60.00"],
+  ["Whisky Nacional 1L", "c_dest", "CX", 6, 23940, 5690, 4890, 18, "2208.30.00"],
+  ["Gin Nacional 750ml", "c_dest", "CX", 6, 19740, 4890, 4190, 18, "2208.50.00"],
+  ["Rum Nacional 700ml", "c_dest", "CX", 6, 16740, 3990, 3390, 18, "2208.40.00"],
+  ["Gelo em Cubo 5kg", "c_outros", "UN", 1, 480, 900, 700, 60, "2201.90.00"],
+  ["Carvão Vegetal 3kg", "c_outros", "UN", 1, 890, 1490, 1200, 40, "4402.90.00"],
 ];
 
 /**
@@ -220,8 +223,8 @@ export function catalogoInicial(): Produto[] {
       custoMedio: custo * 100,
       custoUltimaCompra: custo * 100,
       precoVarejo: 0,
-      precoAtacado: 0,
-      qtdMinimaAtacado: 0,
+      descontoCaixa: 0,
+      descontoCaixaGelado: 0,
       estoqueMinimo: 0,
       saldoAtual: 0, // para vasilhame: unidades na rua
       ncm: "7010.90.21",
@@ -231,7 +234,8 @@ export function catalogoInicial(): Produto[] {
 
   // ---- catalogo
   CATALOGO.forEach((l, i) => {
-    const [nome, cat, unC, fator, custoCompra, varejo, atacado, minAt, estMin, ncm, vasilhame] = l;
+    const [nome, cat, unC, fator, custoCompra, varejo, caixaPorUnidade, estMin, ncm, vasilhame] = l;
+    const desconto = fator > 1 ? Math.max(0, (varejo - caixaPorUnidade) * fator) : 0;
     const custoBase = custoUnitBase(custoCompra, fator);
     produtos.push({
       id: `p_${i + 1}`,
@@ -247,12 +251,14 @@ export function catalogoInicial(): Produto[] {
       custoMedio: custoBase,
       custoUltimaCompra: custoBase,
       precoVarejo: varejo,
-      precoAtacado: atacado,
+      descontoCaixa: desconto,
       ...(() => {
+        // a caixa gelada tem o mesmo desconto da natural
         const g = geladoPadrao(nome, cat, varejo);
-        return g ? { vendeGelado: true, precoGelado: g } : { vendeGelado: false };
+        return g
+          ? { vendeGelado: true, precoGelado: g, descontoCaixaGelado: desconto }
+          : { vendeGelado: false, descontoCaixaGelado: 0 };
       })(),
-      qtdMinimaAtacado: minAt,
       estoqueMinimo: estMin,
       saldoAtual: 0,
       ncm,
@@ -274,9 +280,9 @@ export function catalogoInicial(): Produto[] {
       custoMedio: 0,
       custoUltimaCompra: 0,
       precoVarejo: 0,
-      precoAtacado: 0,
+      descontoCaixa: 0,
+      descontoCaixaGelado: 0,
       vendeGelado: false,
-      qtdMinimaAtacado: fator,
       estoqueMinimo: 0,
       saldoAtual: 0,
       ncm,
@@ -352,8 +358,9 @@ export function gerarEstado(): Estado {
   };
   const custoTabela = new Map(CATALOGO.map((c) => [c[0], c[4] as number]));
 
-  const clientesAtacado = clientes.filter((c) => c.tipoPreco === "ATACADO");
-  const clientesVarejo = clientes.filter((c) => c.tipoPreco === "VAREJO");
+  // na demonstracao, empresa compra em caixa e pessoa fisica leva avulso
+  const clientesAtacado = clientes.filter((c) => c.tipo === "PJ");
+  const clientesVarejo = clientes.filter((c) => c.tipo === "PF");
   const formas: FormaPagamento[] = ["DINHEIRO", "PIX", "PIX", "DEBITO", "CREDITO", "DINHEIRO", "FIADO"];
 
   /**
@@ -483,23 +490,22 @@ export function gerarEstado(): Estado {
         // no balcao, boa parte de quem leva cerveja e refrigerante quer gelado;
         // no atacado, alguns bares levam a caixa ja gelada
         const querGelado = p.vendeGelado === true && chance(atacado ? 0.1 : 0.55);
-        const { tipo, preco, natural, gelado } = precoAplicavel(p, qtd, cliente, querGelado);
+        // no atacado a quantidade ja sai em caixas fechadas (fator x 1..4)
+        const emCaixa = atacado && p.fatorConversao > 1 && qtd % p.fatorConversao === 0;
+        const preco = precoDoItem(p, qtd, emCaixa, querGelado);
         itens.push({
           id: id("vi"),
           produtoId: p.id,
           descricao: p.nome,
           qtd,
-          precoUnit: preco,
+          precoUnit: preco.precoUnit,
           custoUnit: p.custoMedio, // regra 3: congela aqui
-          tipoPrecoAplicado: tipo,
-          // no atacado a quantidade ja sai em caixas fechadas (fator x 1..4)
-          ...(atacado && qtd % p.fatorConversao === 0 && p.fatorConversao > 1
-            ? { embalagem: { unidade: p.unidadeCompra, fator: p.fatorConversao } }
+          tipoPrecoAplicado: preco.tipo,
+          ...(preco.precoEmbalagem !== undefined
+            ? { embalagem: { unidade: p.unidadeCompra, fator: p.fatorConversao, preco: preco.precoEmbalagem } }
             : {}),
-          ...(gelado
-            ? { gelado: true, adicionalGelado: preco - natural }
-            : {}),
-          total: totalItem(qtd, preco),
+          ...(preco.gelado ? { gelado: true, adicionalGelado: preco.adicionalGelado } : {}),
+          total: preco.total,
         });
       }
 
@@ -646,7 +652,7 @@ export function gerarEstado(): Estado {
   entradas.sort((a, b) => b.data.localeCompare(a.data));
 
   return {
-    versao: 2,
+    versao: 3,
     empresa,
     usuarios,
     usuarioAtualId: null,
@@ -673,7 +679,7 @@ export function gerarEstado(): Estado {
  */
 export function estadoVazio(): Estado {
   return {
-    versao: 2,
+    versao: 3,
     empresa: { ...empresa },
     usuarios: usuarios.map((u) => ({ ...u })),
     usuarioAtualId: null,

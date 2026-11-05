@@ -8,13 +8,8 @@
  * 5. O vasilhame sai junto com o produto
  */
 
-import type {
-  Cliente,
-  Produto,
-  TipoPreco,
-  Venda,
-  VendaItem,
-} from "./tipos";
+import { temEmbalagem } from "./embalagem";
+import type { Produto, TipoPreco, Venda, VendaItem } from "./tipos";
 
 // ---------------------------------------------------------------- regra 1
 
@@ -66,63 +61,61 @@ export function podeGelar(produto: Produto): boolean {
 }
 
 /**
- * Quanto o gelado cobra a mais por unidade: a diferenca entre o preco gelado
- * e o varejo. E o mesmo acrescimo na lata avulsa e na caixa fechada — a
- * geladeira gasta o mesmo para gelar cada unidade. Nunca negativo: se o
- * gelado ficou abaixo do varejo (o cadastro avisa), a caixa sai pelo atacado.
+ * Preco da embalagem fechada: as unidades menos o desconto da caixa. Por ser
+ * calculado, acompanha quando o preco da unidade muda. Nunca negativo.
  */
-export function acrescimoGelado(produto: Produto): number {
-  if (!podeGelar(produto)) return 0;
-  return Math.max(0, produto.precoGelado! - produto.precoVarejo);
+export function precoCaixa(produto: Produto, gelado = false): number {
+  const unidade = gelado ? (produto.precoGelado ?? 0) : produto.precoVarejo;
+  const desconto = gelado ? (produto.descontoCaixaGelado ?? 0) : produto.descontoCaixa;
+  return Math.max(0, unidade * produto.fatorConversao - desconto);
 }
 
 /**
- * Decide o preco do item, na ordem do blueprint:
- *   1. cliente marcado como ATACADO          -> atacado
- *   2. quantidade atinge o minimo do produto -> atacado
- *   3. caso contrario                        -> varejo
+ * O preco de um item da venda. Por unidade vale o preco da unidade; na
+ * embalagem fechada, o preco da caixa. Doze latas soltas pagam doze unidades:
+ * a caixa so vale quando o caixa escolhe vender a caixa (decisao da cliente).
  *
- * Gelado vale nos dois, por decisao do cliente:
- *   - varejo gelado: o preco gelado fixo do cadastro
- *   - atacado gelado (caixa ou fardo): atacado + o acrescimo do gelado
- * `natural` e o preco que sairia sem gelar; `preco - natural` e o que o
- * gelado rendeu a mais, e vai congelado no item para o relatorio.
+ * `adicionalGelado` e o que o gelado cobrou a mais por unidade sobre o natural
+ * da mesma forma de venda. Vai congelado no item para o relatorio comparar com
+ * a conta de luz; na caixa, e a diferenca das caixas dividida pelas unidades.
  */
-export function precoAplicavel(
+export function precoDoItem(
   produto: Produto,
   qtd: number,
-  cliente?: Cliente | null,
-  querGelado = false,
+  emEmbalagem: boolean,
+  querGelado: boolean,
 ): {
   tipo: TipoPreco;
-  preco: number;
-  natural: number;
-  motivo: string;
+  /** Por unidade. Na caixa, e o da caixa dividido, so para consulta: o total vem da caixa. */
+  precoUnit: number;
+  /** So na embalagem fechada. */
+  precoEmbalagem?: number;
+  total: number;
   gelado: boolean;
+  adicionalGelado: number;
 } {
-  const gela = querGelado && podeGelar(produto);
-  const atacado =
-    cliente?.tipoPreco === "ATACADO"
-      ? "cliente com tabela de atacado"
-      : qtd >= produto.qtdMinimaAtacado
-        ? `a partir de ${produto.qtdMinimaAtacado} un`
-        : null;
+  const gelado = querGelado && podeGelar(produto);
 
-  if (atacado) {
+  if (emEmbalagem && temEmbalagem(produto)) {
+    const fator = produto.fatorConversao;
+    const preco = precoCaixa(produto, gelado);
     return {
       tipo: "ATACADO",
-      preco: produto.precoAtacado + (gela ? acrescimoGelado(produto) : 0),
-      natural: produto.precoAtacado,
-      motivo: gela ? `${atacado} · gelado` : atacado,
-      gelado: gela,
+      precoUnit: Math.max(1, Math.round(preco / fator)),
+      precoEmbalagem: preco,
+      total: Math.round((qtd / fator) * preco),
+      gelado,
+      adicionalGelado: gelado ? Math.round((preco - precoCaixa(produto)) / fator) : 0,
     };
   }
+
+  const preco = gelado ? produto.precoGelado! : produto.precoVarejo;
   return {
     tipo: "VAREJO",
-    preco: gela ? produto.precoGelado! : produto.precoVarejo,
-    natural: produto.precoVarejo,
-    motivo: gela ? "gelado" : "venda no varejo",
-    gelado: gela,
+    precoUnit: preco,
+    total: Math.round(qtd * preco),
+    gelado,
+    adicionalGelado: gelado ? preco - produto.precoVarejo : 0,
   };
 }
 

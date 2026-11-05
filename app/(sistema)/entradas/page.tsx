@@ -221,7 +221,7 @@ function ListaEntradas() {
           Toque numa carga para ver o que entrou. Repare na coluna{" "}
           <b>Em unidades</b>: a compra é digitada em caixa, fardo ou engradado, e
           o sistema guarda tudo em unidade. É o que permite vender uma lata
-          avulsa no varejo e a caixa fechada no atacado sem o estoque se perder.
+          avulsa e a caixa fechada sem o estoque se perder.
         </p>
       </Cartao>
     </>

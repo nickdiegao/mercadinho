@@ -13,7 +13,6 @@ import {
   Cabecalho,
   Cartao,
   Entrada,
-  Etiqueta,
   Selecao,
 } from "@/components/ui";
 
@@ -48,7 +47,7 @@ export default function Clientes() {
     return estado.clientes
       // desativado some da lista, mas continua valendo nas vendas antigas
       .filter((c) =>
-        tabela === "INATIVO" ? !c.ativo : c.ativo && (tabela ? c.tipoPreco === tabela : true),
+        tabela === "INATIVO" ? !c.ativo : c.ativo,
       )
       .filter(
         (c) =>
@@ -77,15 +76,6 @@ export default function Clientes() {
       titulo: "CPF / CNPJ",
       papel: "apoio",
       render: (c) => <span className="mono whitespace-nowrap text-suave">{c.cpfCnpj}</span>,
-    },
-    {
-      chave: "tabela",
-      titulo: "Tabela",
-      render: (c) => (
-        <Etiqueta tom={c.tipoPreco === "ATACADO" ? "marca" : "neutro"}>
-          {c.tipoPreco}
-        </Etiqueta>
-      ),
     },
     {
       chave: "compras",
@@ -203,7 +193,7 @@ export default function Clientes() {
     <>
       <Cabecalho
         titulo="Clientes"
-        descricao="A tabela de preço do cadastro define se o cliente compra no atacado ou no varejo, em qualquer quantidade."
+        descricao="Documento e endereço saem no recibo. O preço é o mesmo para todos: depende só de vender por unidade ou na caixa."
         acoes={
           podeCadastrarCliente && (
             <Botao
@@ -224,9 +214,7 @@ export default function Clientes() {
           onChange={(e) => setBusca(e.target.value)}
         />
         <Selecao value={tabela} onChange={(e) => setTabela(e.target.value)}>
-          <option value="">Todas as tabelas</option>
-          <option value="ATACADO">Atacado</option>
-          <option value="VAREJO">Varejo</option>
+          <option value="">Clientes ativos</option>
           <option value="INATIVO">Desativados</option>
         </Selecao>
       </div>

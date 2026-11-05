@@ -4,8 +4,9 @@ import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Minus, Plus, Search, Snowflake, Trash2, UserPlus } from "lucide-react";
 import { useEstado, usePerfil } from "@/lib/store";
-import { podeGelar, precoAplicavel } from "@/lib/regras";
+import { podeGelar, precoCaixa, precoDoItem } from "@/lib/regras";
 import {
+  CANAL,
   fechaEmbalagem,
   nomeEmbalagem,
   rotuloEmbalagem,
@@ -33,7 +34,7 @@ interface Linha {
   qtd: number;
   /** A operadora escolheu vender em caixa/fardo fechado. */
   emEmbalagem: boolean;
-  /** Operador marcou gelado. Vale no varejo e na caixa fechada. */
+  /** Operador marcou gelado. Vale na unidade e na caixa fechada. */
   gelado: boolean;
 }
 
@@ -62,13 +63,15 @@ export default function NovaVenda() {
   // uma chave por venda: o duplo clique no Finalizar devolve a mesma venda
   const chave = useRef(novaChave());
 
-  const cliente = estado.clientes.find((c) => c.id === clienteId) ?? null;
   const vendaveis = useMemo(
     () => estado.produtos.filter((p) => p.tipo === "NORMAL" && p.ativo),
     [estado.produtos],
   );
   const clientesAtivos = useMemo(
-    () => estado.clientes.filter((c) => c.ativo),
+    () =>
+      estado.clientes
+        .filter((c) => c.ativo)
+        .sort((a, b) => a.nomeRazao.localeCompare(b.nomeRazao, "pt-BR")),
     [estado.clientes],
   );
 
@@ -85,9 +88,10 @@ export default function NovaVenda() {
       .slice(0, 7);
   }, [busca, vendaveis]);
 
+  // a mesma regra que o servidor usa: o que aparece aqui e o que sera cobrado
   const itens = linhas.map((l) => {
     const p = estado.produtos.find((x) => x.id === l.produtoId)!;
-    const { tipo, preco, motivo, gelado } = precoAplicavel(p, l.qtd, cliente, l.gelado);
+    const preco = precoDoItem(p, l.qtd, l.emEmbalagem, l.gelado);
     const fator = l.emEmbalagem ? p.fatorConversao : 1;
     return {
       ...l,
@@ -95,13 +99,13 @@ export default function NovaVenda() {
       fator,
       /** o numero que aparece no campo: caixas ou unidades */
       qtdMostrada: l.qtd / fator,
-      tipoPreco: tipo,
-      precoUnit: preco,
+      tipoPreco: preco.tipo,
+      precoUnit: preco.precoUnit,
+      precoEmbalagem: preco.precoEmbalagem ?? 0,
       // preco que o botao mostra antes de marcar: o gelado desta linha agora
-      precoSeGelar: podeGelar(p) ? precoAplicavel(p, l.qtd, cliente, true).preco : 0,
-      motivo,
-      saiGelado: gelado,
-      total: Math.round(l.qtd * preco),
+      precoSeGelar: podeGelar(p) ? (l.emEmbalagem ? precoCaixa(p, true) : p.precoGelado!) : 0,
+      saiGelado: preco.gelado,
+      total: preco.total,
     };
   });
 
@@ -197,7 +201,7 @@ export default function NovaVenda() {
     <>
       <Cabecalho
         titulo="Nova venda"
-        descricao="Busque pelo nome, código ou SKU. O preço de atacado entra sozinho quando a quantidade bate."
+        descricao="Busque pelo nome, código ou SKU. Cada item sai por unidade ou na embalagem fechada, pelo preço da caixa."
       />
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_330px]">
@@ -227,10 +231,7 @@ export default function NovaVenda() {
                 {resultados.map((p, i) => {
                   const semPreco = p.precoVarejo <= 0;
                   const sigla = p.unidadeCompra.toLowerCase();
-                  // preco de uma embalagem fechada: o que a regra de preco daria
-                  const precoEmbalagem = temEmbalagem(p)
-                    ? precoAplicavel(p, p.fatorConversao, cliente).preco * p.fatorConversao
-                    : 0;
+                  const precoEmbalagem = temEmbalagem(p) ? precoCaixa(p) : 0;
                   return (
                     <li
                       key={p.id}
@@ -324,7 +325,7 @@ export default function NovaVenda() {
                         </p>
                         <p className="mt-0.5 flex flex-wrap items-center gap-2 text-[11.5px] text-suave">
                           <Etiqueta tom={i.tipoPreco === "ATACADO" ? "marca" : "neutro"}>
-                            {i.tipoPreco}
+                            {CANAL[i.tipoPreco]}
                           </Etiqueta>
                           {i.saiGelado && (
                             <Etiqueta tom="marca">
@@ -333,9 +334,8 @@ export default function NovaVenda() {
                           )}
                           <span>
                             {i.emEmbalagem
-                              ? `${moeda(i.precoUnit * i.fator)} a ${i.produto.unidadeCompra.toLowerCase()} (${moeda(i.precoUnit)}/un)`
-                              : `${moeda(i.precoUnit)} / un`}{" "}
-                            — {i.motivo}
+                              ? `${moeda(i.precoEmbalagem)} a ${i.produto.unidadeCompra.toLowerCase()} (sai a ${moeda(i.precoEmbalagem / i.fator)}/un)`
+                              : `${moeda(i.precoUnit)} / un`}
                           </span>
                         </p>
                       </div>
@@ -415,11 +415,6 @@ export default function NovaVenda() {
                         <button
                           onClick={() => alternarGelado(i.produtoId)}
                           aria-pressed={i.saiGelado}
-                          title={
-                            i.tipoPreco === "ATACADO"
-                              ? "Caixa gelada: atacado mais o acréscimo do gelado por unidade"
-                              : undefined
-                          }
                           className={`transicao inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-semibold ${
                             i.saiGelado
                               ? "border-marca bg-marca text-white"
@@ -487,32 +482,13 @@ export default function NovaVenda() {
               value={clienteId}
               onChange={(e) => setClienteId(e.target.value)}
             >
-              <option value="">Consumidor final (varejo)</option>
-              <optgroup label="Atacado">
-                {clientesAtivos
-                  .filter((c) => c.tipoPreco === "ATACADO")
-                  .map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.nomeRazao}
-                    </option>
-                  ))}
-              </optgroup>
-              <optgroup label="Varejo">
-                {clientesAtivos
-                  .filter((c) => c.tipoPreco === "VAREJO")
-                  .map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.nomeRazao}
-                    </option>
-                  ))}
-              </optgroup>
+              <option value="">Consumidor final</option>
+              {clientesAtivos.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nomeRazao}
+                </option>
+              ))}
             </Selecao>
-            {cliente?.tipoPreco === "ATACADO" && (
-              <p className="mt-2 text-[12px] leading-relaxed text-marca">
-                Cliente com tabela de atacado: todo item sai no preço de atacado,
-                em qualquer quantidade.
-              </p>
-            )}
           </Cartao>
 
           <Cartao>

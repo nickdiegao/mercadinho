@@ -5,12 +5,12 @@ import Link from "next/link";
 import { AlertTriangle, ExternalLink, Pencil, Plus, Snowflake } from "lucide-react";
 import { useEstado, usePerfil } from "@/lib/store";
 import {
-  acrescimoGelado,
   aguardandoEntrada,
   margem,
   markup,
   podeGelar,
   precisaRepor,
+  precoCaixa,
   semCusto,
 } from "@/lib/regras";
 import { moeda, numero, custoCurto, moeda4 } from "@/lib/formato";
@@ -26,6 +26,9 @@ import {
   Etiqueta,
   Selecao,
 } from "@/components/ui";
+
+/** A caixa so existe com embalagem e com preco da unidade. */
+const temCaixa = (p: Produto) => p.fatorConversao > 1 && p.precoVarejo > 0;
 
 export default function Produtos() {
   const { estado } = useEstado();
@@ -106,8 +109,8 @@ export default function Produtos() {
         ]
       : []),
     {
-      chave: "varejo",
-      titulo: "Varejo",
+      chave: "unidade",
+      titulo: "Unidade",
       alinha: "right",
       papel: "destaque",
       render: (p) =>
@@ -118,12 +121,17 @@ export default function Produtos() {
         ),
     },
     {
-      chave: "atacado",
-      titulo: "Atacado",
+      chave: "caixa",
+      titulo: "Caixa",
       alinha: "right",
       render: (p) =>
-        p.precoAtacado > 0 ? (
-          <span className="font-semibold text-marca">{moeda(p.precoAtacado)}</span>
+        temCaixa(p) ? (
+          <span
+            className="font-semibold text-marca"
+            title={p.descontoCaixa > 0 ? `${moeda(p.descontoCaixa)} de desconto` : "sem desconto"}
+          >
+            {moeda(precoCaixa(p))}
+          </span>
         ) : (
           <span className="text-suave">—</span>
         ),
@@ -167,10 +175,12 @@ export default function Produtos() {
                   <span className="text-positivo">
                     {(margem(p.precoVarejo, p.custoMedio) * 100).toFixed(1)}%
                   </span>
-                  <span className="text-suave">
-                    {" / "}
-                    {(margem(p.precoAtacado, p.custoMedio) * 100).toFixed(1)}%
-                  </span>
+                  {temCaixa(p) && (
+                    <span className="text-suave" title="Margem na caixa">
+                      {" / "}
+                      {(margem(precoCaixa(p) / p.fatorConversao, p.custoMedio) * 100).toFixed(1)}%
+                    </span>
+                  )}
                 </>
               ) : (
                 <span className="text-suave">—</span>
@@ -205,7 +215,7 @@ export default function Produtos() {
                 valor={p.custoUltimaCompra > 0 ? custoCurto(p.custoUltimaCompra) : "—"}
               />
               <Info
-                rotulo="Markup varejo"
+                rotulo="Markup unidade"
                 valor={
                   p.custoMedio > 0
                     ? `${(markup(p.precoVarejo, p.custoMedio) * 100).toFixed(1)}%`
@@ -213,23 +223,27 @@ export default function Produtos() {
                 }
               />
               <Info
-                rotulo={podeGelar(p) ? "Margem gelado" : "Markup atacado"}
+                rotulo={podeGelar(p) ? "Margem gelado" : "Markup caixa"}
                 valor={
                   p.custoMedio <= 0
                     ? "—"
                     : podeGelar(p)
                       ? `${(margem(p.precoGelado!, p.custoMedio) * 100).toFixed(1)}%`
-                      : `${(markup(p.precoAtacado, p.custoMedio) * 100).toFixed(1)}%`
+                      : temCaixa(p)
+                        ? `${(markup(precoCaixa(p) / p.fatorConversao, p.custoMedio) * 100).toFixed(1)}%`
+                        : "—"
                 }
               />
             </>
           )}
-          <Info rotulo="Atacado a partir de" valor={`${numero(p.qtdMinimaAtacado)} un`} />
-          {podeGelar(p) && (
+          {temCaixa(p) && (
             <Info
-              rotulo="Caixa gelada"
-              valor={`${moeda(p.precoAtacado + acrescimoGelado(p))} / un`}
+              rotulo="Desconto da caixa"
+              valor={p.descontoCaixa > 0 ? moeda(p.descontoCaixa) : "sem desconto"}
             />
+          )}
+          {podeGelar(p) && p.fatorConversao > 1 && (
+            <Info rotulo="Caixa gelada" valor={moeda(precoCaixa(p, true))} />
           )}
           <Info rotulo="Estoque mínimo" valor={`${numero(p.estoqueMinimo)} un`} />
           <Info rotulo="NCM" valor={p.ncm || "—"} />
@@ -283,7 +297,7 @@ export default function Produtos() {
     <>
       <Cabecalho
         titulo="Produtos"
-        descricao="Toque num produto para ver custo, margem e markup. Cada produto tem preço de varejo, de atacado e, se gelar, preço gelado."
+        descricao="Toque num produto para ver custo, margem e markup. Cada produto tem o preço da unidade, o da caixa e, se gelar, os dois gelados."
         acoes={
           <>
             <ImportarPlanilha />

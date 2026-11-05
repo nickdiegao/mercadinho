@@ -5,6 +5,7 @@ import { useDeferredValue, useMemo, useState } from "react";
 import { Ban, Beer, FileText, Plus, Snowflake } from "lucide-react";
 import { useEstado, usePerfil } from "@/lib/store";
 import { custoItem } from "@/lib/regras";
+import { CANAL, comoVendido } from "@/lib/embalagem";
 import { moeda, numero, dataHora, diaCurto, hora } from "@/lib/formato";
 import {
   Lista,
@@ -107,7 +108,7 @@ export default function Vendas() {
       titulo: "Canal",
       render: (v) => (
         <Etiqueta tom={v.tipoPreco === "ATACADO" ? "marca" : "neutro"}>
-          {v.tipoPreco}
+          {CANAL[v.tipoPreco]}
         </Etiqueta>
       ),
     },
@@ -186,13 +187,13 @@ export default function Vendas() {
                 render: (i) => i.descricao,
               },
               {
-                chave: "tabela",
-                titulo: "Tabela",
+                chave: "forma",
+                titulo: "Saiu em",
                 papel: "apoio",
                 render: (i) => {
                   return (
                     <>
-                      {i.tipoPrecoAplicado === "ATACADO" ? "atacado" : "varejo"}
+                      {CANAL[i.tipoPrecoAplicado].toLowerCase()}
                       {i.gelado && (
                         <span className="ml-1 inline-flex items-center gap-0.5 font-semibold text-marca">
                           <Snowflake size={10} /> gelado
@@ -220,9 +221,13 @@ export default function Vendas() {
               },
               {
                 chave: "preco",
-                titulo: "Preço un.",
+                titulo: "Preço",
                 alinha: "right",
-                render: (i) => moeda(i.precoUnit),
+                // na caixa, o preco da caixa: dividir por unidade perderia centavos
+                render: (i) => {
+                  const q = comoVendido(i);
+                  return q.fator > 1 ? `${moeda(q.precoUnit)} / ${q.unidade.toLowerCase()}` : moeda(q.precoUnit);
+                },
               },
               ...(podeVerLucro
                 ? [
@@ -314,9 +319,9 @@ export default function Vendas() {
           onChange={(e) => setBusca(e.target.value)}
         />
         <Selecao value={canal} onChange={(e) => setCanal(e.target.value)}>
-          <option value="">Todos os canais</option>
-          <option value="ATACADO">Atacado</option>
-          <option value="VAREJO">Varejo</option>
+          <option value="">Unidade e caixa</option>
+          <option value="ATACADO">Caixa</option>
+          <option value="VAREJO">Unidade</option>
         </Selecao>
         <Selecao value={forma} onChange={(e) => setForma(e.target.value)}>
           <option value="">Toda forma</option>

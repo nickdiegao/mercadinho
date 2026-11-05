@@ -176,7 +176,7 @@ export default function CargaInicial() {
           <Etiqueta>Passo 3</Etiqueta>
           <h3 className="mt-2 text-[15px] font-bold text-tinta">Definir preços</h3>
           <p className="mt-1.5 text-[13px] leading-relaxed text-tinta2">
-            Com o custo certo na mão, ajuste varejo e atacado vendo a margem
+            Com o custo certo na mão, ajuste a unidade e a caixa vendo a margem
             calcular na tela. Preço consciente em vez de &ldquo;no olho&rdquo;.
           </p>
         </Cartao>

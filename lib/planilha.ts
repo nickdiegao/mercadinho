@@ -8,6 +8,7 @@
 
 import { baixar } from "./exportar";
 import type { LinhaImportada } from "./operacoes";
+import { podeGelar, precoCaixa } from "./regras";
 import type { Produto } from "./tipos";
 
 const semAcento = (s: string) =>
@@ -15,15 +16,20 @@ const semAcento = (s: string) =>
 
 type Campo = keyof LinhaImportada;
 
-/** Regras em ordem: a primeira que bate com o titulo da coluna vence. */
+/**
+ * Regras em ordem: a primeira que bate com o titulo da coluna vence. A planilha
+ * de antes da 0.1.8 (varejo, atacado por unidade) continua sendo lida; a coluna
+ * "Atacado a partir de" dela nao bate com nada e fica de fora.
+ */
 const REGRAS: Array<[Campo, (t: string) => boolean]> = [
-  ["qtdMinimaAtacado", (t) => t.includes("atacado a partir")],
   ["fator", (t) => t.includes("unidades na embalagem")],
   ["unidadeCompra", (t) => t.includes("embalagem")],
   ["custoUnit", (t) => t.startsWith("custo")],
-  ["precoVarejo", (t) => t.includes("varejo")],
-  ["precoAtacado", (t) => t.includes("preco atacado")],
+  ["precoCaixaGelado", (t) => t.includes("gelado") && t.includes("caixa")],
   ["precoGelado", (t) => t.includes("gelado")],
+  ["precoCaixa", (t) => t.includes("preco caixa") || t.includes("preco da caixa")],
+  ["precoAtacado", (t) => t.includes("preco atacado")],
+  ["precoVarejo", (t) => t.includes("preco unidade") || t.includes("varejo")],
   ["estoqueMinimo", (t) => t.includes("estoque minimo")],
   ["categoria", (t) => t.includes("categoria")],
   ["sku", (t) => t.startsWith("codigo")],
@@ -118,9 +124,10 @@ export async function lerPlanilha(arquivo: File): Promise<LinhaImportada[]> {
       fator: inteiro("fator"),
       custoUnit: dinheiro("custoUnit", 10000),
       precoVarejo: dinheiro("precoVarejo", 100),
-      precoAtacado: dinheiro("precoAtacado", 100),
-      qtdMinimaAtacado: inteiro("qtdMinimaAtacado"),
+      precoCaixa: dinheiro("precoCaixa", 100),
       precoGelado: dinheiro("precoGelado", 100),
+      precoCaixaGelado: dinheiro("precoCaixaGelado", 100),
+      precoAtacado: dinheiro("precoAtacado", 100),
       estoqueMinimo: inteiro("estoqueMinimo"),
     });
   }
@@ -141,10 +148,10 @@ export async function baixarModelo(produtos: Produto[], categorias: Array<{ id: 
     { header: "Embalagem de compra", width: 14 },
     { header: "Unidades na embalagem", width: 13 },
     { header: "Custo por unidade (R$)", width: 15 },
-    { header: "Preço varejo (R$)", width: 15 },
-    { header: "Preço atacado (R$)", width: 15 },
-    { header: "Atacado a partir de (un)", width: 15 },
-    { header: "Preço gelado (R$)", width: 15 },
+    { header: "Preço unidade (R$)", width: 14 },
+    { header: "Preço caixa (R$)", width: 14 },
+    { header: "Preço gelado unidade (R$)", width: 15 },
+    { header: "Preço gelado caixa (R$)", width: 15 },
     { header: "Estoque mínimo (un)", width: 14 },
   ];
   const cab = ws.getRow(1);
@@ -158,6 +165,7 @@ export async function baixarModelo(produtos: Produto[], categorias: Array<{ id: 
     .filter((p) => p.tipo === "NORMAL")
     .sort((a, b) => ordem.indexOf(a.categoriaId) - ordem.indexOf(b.categoriaId) || a.nome.localeCompare(b.nome, "pt-BR"));
   for (const p of lista) {
+    const temCaixa = p.fatorConversao > 1;
     ws.addRow([
       p.sku,
       p.nome,
@@ -166,13 +174,13 @@ export async function baixarModelo(produtos: Produto[], categorias: Array<{ id: 
       p.fatorConversao,
       p.custoMedio > 0 ? p.custoMedio / 10000 : null,
       p.precoVarejo > 0 ? p.precoVarejo / 100 : null,
-      p.precoAtacado > 0 ? p.precoAtacado / 100 : null,
-      p.qtdMinimaAtacado,
-      p.precoGelado ? p.precoGelado / 100 : null,
+      temCaixa && p.precoVarejo > 0 ? precoCaixa(p) / 100 : null,
+      podeGelar(p) ? p.precoGelado! / 100 : null,
+      temCaixa && podeGelar(p) ? precoCaixa(p, true) / 100 : null,
       p.estoqueMinimo,
     ]);
   }
-  for (const c of [6, 7, 8, 10]) ws.getColumn(c).numFmt = "R$ #,##0.00";
+  for (const c of [7, 8, 9, 10]) ws.getColumn(c).numFmt = "R$ #,##0.00";
   ws.getColumn(6).numFmt = "R$ #,##0.0000";
 
   const buf = await wb.xlsx.writeBuffer();
