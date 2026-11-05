@@ -42,7 +42,7 @@ async function main() {
     console.log(
       comando === "semear"
         ? `Banco com a demonstração: ${estado.produtos.length} produtos, ${estado.vendas.length} vendas, ${estado.movimentos.length} movimentos.`
-        : "Banco zerado: empresa, usuários e categorias. Pronto para os dados reais.",
+        : "Banco zerado: empresa, usuários, categorias e produtos com saldo 0. Pronto para os dados reais.",
     );
     console.log(`Usuários: ${estado.usuarios.map((u) => u.email).join(", ")} (senha: SENHA_INICIAL do .env.local).`);
   } else {

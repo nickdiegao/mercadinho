@@ -142,6 +142,31 @@ const CATALOGO: LinhaProduto[] = [
   ["Carvão Vegetal 3kg", "c_outros", "UN", 1, 890, 1490, 1200, 10, 40, "4402.90.00"],
 ];
 
+/**
+ * Cervejas pedidas pela cliente, sem preco nem custo: ela preenche depois.
+ * Ficam fora da demonstracao (ids "p_x...") para nao gerar venda de R$ 0,00.
+ * [nome, unidades por caixa, ncm]
+ */
+const CERVEJAS_DA_CLIENTE: Array<[string, number, string]> = [
+  ["Brahma Latão", 12, "2203.00.00"],
+  ["Brahma Super Latão", 12, "2203.00.00"],
+  ["Brahma Zero Lata", 12, "2202.91.00"],
+  ["Amstel Latão", 12, "2203.00.00"],
+  ["Heineken Lata", 12, "2203.00.00"],
+  ["Heineken Latão", 12, "2203.00.00"],
+  ["Heineken Long Neck", 24, "2203.00.00"],
+  ["Heineken Long Neck Zero", 24, "2202.91.00"],
+  ["Heineken Long Neck Ultimate", 24, "2203.00.00"],
+  ["Corona Lata", 12, "2203.00.00"],
+  ["Corona Long Neck", 24, "2203.00.00"],
+  ["Corona Long Neck Zero", 24, "2202.91.00"],
+  ["Skol Latão", 12, "2203.00.00"],
+  ["Schin Latão", 12, "2203.00.00"],
+  ["Itaipava Latão", 12, "2203.00.00"],
+  ["Itaipava Super Latão", 12, "2203.00.00"],
+  ["Spaten Latão", 12, "2203.00.00"],
+];
+
 const VASILHAMES: Array<[string, string, number]> = [
   ["v_600", "Casco Garrafa 600ml", 150],
   ["v_1l", "Casco Garrafa 1L", 200],
@@ -234,6 +259,30 @@ export function catalogoInicial(): Produto[] {
       ativo: true,
     });
   });
+
+  CERVEJAS_DA_CLIENTE.forEach(([nome, fator, ncm], i) => {
+    produtos.push({
+      id: `p_x${i + 1}`,
+      sku: `SKU${String(CATALOGO.length + i + 1).padStart(4, "0")}`,
+      codigoBarras: "",
+      nome,
+      categoriaId: "c_cerveja",
+      tipo: "NORMAL",
+      unidadeBase: "UN",
+      unidadeCompra: "CX",
+      fatorConversao: fator,
+      custoMedio: 0,
+      custoUltimaCompra: 0,
+      precoVarejo: 0,
+      precoAtacado: 0,
+      vendeGelado: false,
+      qtdMinimaAtacado: fator,
+      estoqueMinimo: 0,
+      saldoAtual: 0,
+      ncm,
+      ativo: true,
+    });
+  });
   return produtos;
 }
 
@@ -251,7 +300,7 @@ export function gerarEstado(): Estado {
   const caixaMovimentos: CaixaMovimento[] = [];
   const documentos: Documento[] = [];
 
-  const produtos = catalogoInicial();
+  const produtos = catalogoInicial().filter((p) => !p.id.startsWith("p_x"));
 
   const porId = new Map(produtos.map((p) => [p.id, p]));
   const normais = produtos.filter((p) => p.tipo === "NORMAL");
