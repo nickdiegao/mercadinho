@@ -128,6 +128,11 @@ algum valor do `.env.local` dentro do pacote.
 | Banco, segredo da sessão e log | `%LOCALAPPDATA%\Mercadinho\dados` — desinstalar ou atualizar não toca aqui |
 | Backups | `Documentos\Mercadinho Backups` |
 
+- **Antes de publicar:** `npm run instalador:checar` confere o instalador que
+  acabou de sair, sem tocar no sistema instalado. Ele abre o programa numa
+  pasta temporária com um banco antigo (sem produtos) e confere que a versão é a
+  mesma em todo lugar, que o programa abre e que o banco é atualizado. Só
+  publique o release se ele terminar com "Tudo certo".
 - **Como roda:** `electron/main.cjs` sobe o mesmo servidor Next num processo
   separado, só em `127.0.0.1`, e abre a janela nele.
 - **Recibo:** sai direto na impressora escolhida em Configurações ou, sem

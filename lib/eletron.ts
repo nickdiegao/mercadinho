@@ -20,6 +20,10 @@ export interface Eletron {
   }>;
   /** Fecha o programa, instala a versao baixada e abre de novo. */
   instalarAtualizacao: () => Promise<{ ok: boolean }>;
+  /** Versao ja baixada e esperando instalar, ou null. */
+  versaoPronta: () => Promise<string | null>;
+  /** Avisa quando uma versao termina de baixar. Devolve a funcao que para de ouvir. */
+  aoFicarPronta: (retorno: (versao: string) => void) => () => void;
   /** Porcentagem do download. Devolve a funcao que para de ouvir. */
   aoProgressoDaAtualizacao: (retorno: (porcentagem: number) => void) => () => void;
 }

@@ -1,6 +1,6 @@
 {
   "name": "mercadinho-mockup",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -12,7 +12,8 @@
     "banco:zerar": "tsx scripts/banco.ts zerar",
     "banco:preparar": "npm run banco:semear",
     "banco:gerar": "drizzle-kit generate",
-    "instalador": "node scripts/empacotar.mjs"
+    "instalador": "node scripts/empacotar.mjs",
+    "instalador:checar": "node --disable-warning=ExperimentalWarning scripts/checar-instalador.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

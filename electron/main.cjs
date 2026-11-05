@@ -347,6 +347,8 @@ function prepararAtualizador() {
   autoUpdater.on("error", (e) => registro("ERRO")(e));
   autoUpdater.on("update-downloaded", (info) => {
     versaoBaixada = info.version;
+    // a tela mostra o aviso "versao pronta" sem a pessoa precisar procurar
+    janela?.webContents.send("atualizacao:pronta", info.version);
   });
   autoUpdater.on("download-progress", (p) => {
     janela?.webContents.send("atualizacao:progresso", Math.round(p.percent));
@@ -357,7 +359,14 @@ function prepararAtualizador() {
 function procurarAtualizacao() {
   prepararAtualizador();
   autoUpdater.checkForUpdates().catch(() => {});
+  // sistema que fica aberto o dia todo tambem descobre a versao nova
+  setInterval(() => {
+    if (!versaoBaixada) autoUpdater.checkForUpdates().catch(() => {});
+  }, 4 * 60 * 60 * 1000);
 }
+
+/** Versao ja baixada e esperando instalar, ou null. */
+ipcMain.handle("atualizacao:situacao", () => versaoBaixada);
 
 let conferindo = false;
 
