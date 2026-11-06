@@ -27,7 +27,6 @@ const vazio = (): Cliente => ({
   telefone: "",
   email: "",
   endereco: "",
-  tipoPreco: "VAREJO",
   limiteCredito: 0,
   ativo: true,
 });
@@ -48,7 +47,7 @@ export function FormCliente({
     <Modal
       aberto={aberto}
       titulo={cliente ? "Editar cliente" : "Novo cliente"}
-      descricao="O documento sai impresso no recibo. A tabela de preço define se ele compra no atacado."
+      descricao="O documento sai impresso no recibo, e a administradora define o limite de fiado."
       onFechar={onFechar}
     >
       {aberto && (
@@ -274,32 +273,6 @@ function Corpo({
       </Campo>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Campo
-          rotulo="Tabela de preço"
-          dica={
-            podeDefinirPreco
-              ? "Atacado: todo item sai no preço de atacado."
-              : "Só a administradora define cliente de atacado."
-          }
-        >
-          <div className="grid grid-cols-2 gap-1.5">
-            {(["VAREJO", "ATACADO"] as const).map((t) => (
-              <button
-                key={t}
-                type="button"
-                disabled={!podeDefinirPreco}
-                onClick={() => muda("tipoPreco", t)}
-                className={`transicao rounded-md border px-2 py-2 text-[12.5px] font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${
-                  c.tipoPreco === t
-                    ? "border-marca bg-marca-clara text-marca"
-                    : "border-borda text-tinta2 hover:border-borda2"
-                }`}
-              >
-                {t === "VAREJO" ? "Varejo" : "Atacado"}
-              </button>
-            ))}
-          </div>
-        </Campo>
         <Campo
           rotulo="Limite de crédito (R$)"
           dica={podeDefinirPreco ? "Quanto ele pode comprar fiado." : "Definido pela administradora."}

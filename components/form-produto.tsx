@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertTriangle, Snowflake } from "lucide-react";
+import { AlertTriangle, BadgePercent, Snowflake } from "lucide-react";
 import { useEstado, usePerfil } from "@/lib/store";
+import { rotuloEmbalagem } from "@/lib/embalagem";
 import { custoUnitBase, margem } from "@/lib/regras";
 import { custoCurto, moeda, numero } from "@/lib/formato";
 import type { Produto, UnidadeCompra } from "@/lib/tipos";
@@ -34,9 +35,9 @@ const vazio = (): Produto => ({
   custoMedio: 0,
   custoUltimaCompra: 0,
   precoVarejo: 0,
-  precoAtacado: 0,
+  descontoCaixa: 0,
+  descontoCaixaGelado: 0,
   vendeGelado: false,
-  qtdMinimaAtacado: 12,
   estoqueMinimo: 0,
   saldoAtual: 0,
   ncm: "",
@@ -108,9 +109,10 @@ function Corpo({
   const [p, setP] = useState<Produto>(inicial);
   const [fatorTexto, setFatorTexto] = useState(String(inicial.fatorConversao));
   const [varejo, setVarejo] = useState(paraTexto(inicial.precoVarejo));
-  const [atacado, setAtacado] = useState(paraTexto(inicial.precoAtacado));
   const [gelado, setGelado] = useState(paraTexto(inicial.precoGelado ?? 0));
-  const [minAtacado, setMinAtacado] = useState(String(inicial.qtdMinimaAtacado));
+  // so o desconto fica guardado: a caixa e calculada a partir dele
+  const [descontoCaixa, setDescontoCaixa] = useState(inicial.descontoCaixa ?? 0);
+  const [descontoCaixaGelado, setDescontoCaixaGelado] = useState(inicial.descontoCaixaGelado ?? 0);
   const [minimo, setMinimo] = useState(String(inicial.estoqueMinimo || ""));
   // custo medio por embalagem de compra (R$), igual ao que se digita na entrada
   const custoDaEmbalagem = (c: number) =>
@@ -130,7 +132,6 @@ function Corpo({
 
   const fator = p.unidadeCompra === "UN" ? 1 : Math.max(0, parseInt(fatorTexto, 10) || 0);
   const pv = paraCentavos(varejo);
-  const pa = paraCentavos(atacado);
   const pg = paraCentavos(gelado);
   const comEstoque = novo && !semEstoqueInicial && temNoDeposito;
   const qtdIni = comEstoque ? parseInt(qtdInicial, 10) || 0 : 0;
@@ -159,10 +160,18 @@ function Corpo({
   const erros = {
     nome: !p.nome.trim() ? "Informe o nome do produto." : "",
     fator: fator < 1 ? "Quantas unidades vêm em cada embalagem?" : "",
-    varejo: podeDefinirPreco && pv <= 0 ? "Informe o preço de varejo." : "",
+    varejo: podeDefinirPreco && pv <= 0 ? "Informe o preço da unidade." : "",
     gelado:
       podeDefinirPreco && p.vendeGelado && pg <= 0
         ? "Informe o preço gelado ou desmarque a opção."
+        : "",
+    caixa:
+      podeDefinirPreco && fator > 1 && pv > 0 && descontoCaixa >= pv * fator
+        ? "O desconto é maior que o preço da caixa."
+        : "",
+    caixaGelada:
+      podeDefinirPreco && p.vendeGelado && fator > 1 && pg > 0 && descontoCaixaGelado >= pg * fator
+        ? "O desconto é maior que o preço da caixa gelada."
         : "",
     codigo: codigoRepetido ? `Código já usado em ${codigoRepetido.nome}.` : "",
     inicial:
@@ -175,9 +184,6 @@ function Corpo({
   // preco fixo por decisao do cliente: o risco e o gelado ficar para tras
   // quando o varejo sobe. O aviso nao bloqueia, so chama atencao.
   const geladoAbaixo = p.vendeGelado && pg > 0 && pv > 0 && pg <= pv;
-  // caixa gelada: atacado + o mesmo acrescimo por unidade (atacado em branco = varejo)
-  const atacadoEfetivo = pa > 0 ? pa : pv;
-  const caixaGelada = p.vendeGelado && pg > pv && pv > 0 ? atacadoEfetivo + (pg - pv) : 0;
 
   async function salvar() {
     setTentou(true);
@@ -190,10 +196,9 @@ function Corpo({
       ...(podeDefinirPreco
         ? {
             precoVarejo: pv,
-            // atacado em branco = mesmo preco do varejo
-            precoAtacado: pa > 0 ? pa : pv,
+            descontoCaixa: fator > 1 ? descontoCaixa : 0,
             precoGelado: p.vendeGelado ? pg : undefined,
-            qtdMinimaAtacado: parseInt(minAtacado, 10) || fator,
+            descontoCaixaGelado: p.vendeGelado && fator > 1 ? descontoCaixaGelado : 0,
           }
         : {}),
       estoqueMinimo: parseInt(minimo, 10) || 0,
@@ -323,42 +328,20 @@ function Corpo({
             : "Só a administradora define preço. O produto fica marcado como sem preço até ela preencher — e não pode ser vendido antes disso."
         }
       >
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Campo rotulo="Varejo — por unidade (R$)" dica={margemTexto(pv)}>
-            <Entrada
-              inputMode="decimal"
-              value={varejo}
-              onChange={(e) => setVarejo(e.target.value)}
-              disabled={!podeDefinirPreco}
-              placeholder="0,00"
-            />
-          </Campo>
-          <Campo
-            rotulo="Atacado — por unidade (R$)"
-            dica={margemTexto(pa) ?? "Em branco, fica igual ao varejo."}
-          >
-            <Entrada
-              inputMode="decimal"
-              value={atacado}
-              onChange={(e) => setAtacado(e.target.value)}
-              disabled={!podeDefinirPreco}
-              placeholder="0,00"
-            />
-          </Campo>
-        </div>
+        <PrecoComCaixa
+          titulo="Preço natural"
+          rotuloUnidade="Unidade (R$)"
+          unidadeTexto={varejo}
+          onUnidade={setVarejo}
+          desconto={descontoCaixa}
+          onDesconto={setDescontoCaixa}
+          fator={fator}
+          embalagem={rotuloEmbalagem(p.unidadeCompra)}
+          margemTexto={margemTexto}
+          editavel={podeDefinirPreco}
+        />
         {tentou && erros.varejo && <Erro>{erros.varejo}</Erro>}
-
-        <Campo
-          rotulo="Atacado a partir de (unidades)"
-          dica={fator > 1 ? `Uma ${p.unidadeCompra} fechada são ${fator} un.` : undefined}
-        >
-          <Entrada
-            inputMode="numeric"
-            value={minAtacado}
-            onChange={(e) => setMinAtacado(e.target.value.replace(/\D/g, ""))}
-            disabled={!podeDefinirPreco}
-          />
-        </Campo>
+        {erros.caixa && <Erro>{erros.caixa}</Erro>}
 
         <div className="rounded-md border border-borda bg-superficie px-3.5 py-3">
           <label className="flex items-center gap-2 text-[13.5px] font-semibold text-tinta">
@@ -373,35 +356,26 @@ function Corpo({
             Vende gelado
           </label>
           {p.vendeGelado && (
-            <div className="mt-3">
-              <Campo
-                rotulo="Preço gelado — por unidade (R$)"
-                dica={
-                  margemTexto(pg) ??
-                  "Cobre o custo de energia da geladeira. Na caixa fechada, o atacado ganha o mesmo acréscimo por unidade."
-                }
-              >
-                <Entrada
-                  inputMode="decimal"
-                  value={gelado}
-                  onChange={(e) => setGelado(e.target.value)}
-                  disabled={!podeDefinirPreco}
-                  placeholder="0,00"
-                />
-              </Campo>
+            <div className="mt-3 flex flex-col gap-3">
+              <PrecoComCaixa
+                rotuloUnidade="Unidade gelada (R$)"
+                unidadeTexto={gelado}
+                onUnidade={setGelado}
+                desconto={descontoCaixaGelado}
+                onDesconto={setDescontoCaixaGelado}
+                fator={fator}
+                embalagem={`${rotuloEmbalagem(p.unidadeCompra)} ${p.unidadeCompra === "CX" ? "gelada" : "gelado"}`}
+                margemTexto={margemTexto}
+                editavel={podeDefinirPreco}
+                dica="Cobre o custo de energia da geladeira."
+              />
               {tentou && erros.gelado && <Erro>{erros.gelado}</Erro>}
-              {caixaGelada > 0 && (
-                <p className="mt-2 text-[12px] leading-snug text-marca">
-                  Caixa ou fardo gelado: {moeda(caixaGelada)}/un — o atacado de{" "}
-                  {moeda(atacadoEfetivo)} mais {moeda(pg - pv)} do gelado
-                  {fator > 1 ? `, ${moeda(caixaGelada * fator)} a ${p.unidadeCompra} com ${fator}` : ""}.
-                </p>
-              )}
+              {erros.caixaGelada && <Erro>{erros.caixaGelada}</Erro>}
               {geladoAbaixo && (
-                <p className="mt-2 flex items-start gap-1.5 rounded-md bg-alerta-claro px-2.5 py-2 text-[12px] leading-snug text-alerta">
+                <p className="flex items-start gap-1.5 rounded-md bg-alerta-claro px-2.5 py-2 text-[12px] leading-snug text-alerta">
                   <AlertTriangle size={13} className="mt-0.5 shrink-0" />
                   O gelado está igual ou mais barato que o natural. Acontece
-                  quando o varejo sobe e o gelado não acompanha — confira antes
+                  quando a unidade sobe e o gelado não acompanha — confira antes
                   de salvar.
                 </p>
               )}
@@ -549,6 +523,124 @@ function Corpo({
         <p className="-mt-3 text-right text-[12px] text-alerta">
           Corrija os campos marcados acima.
         </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * O preco da unidade e, embaixo, o da embalagem fechada. A caixa e calculada
+ * (unidades menos o desconto) e pode ser editada: editar a caixa e digitar o
+ * desconto sao o mesmo ajuste, um calcula o outro. So o desconto fica guardado,
+ * e por isso a caixa acompanha quando a unidade muda.
+ */
+function PrecoComCaixa({
+  titulo,
+  rotuloUnidade,
+  unidadeTexto,
+  onUnidade,
+  desconto,
+  onDesconto,
+  fator,
+  embalagem,
+  margemTexto,
+  editavel,
+  dica,
+}: {
+  titulo?: string;
+  rotuloUnidade: string;
+  unidadeTexto: string;
+  onUnidade: (t: string) => void;
+  desconto: number;
+  onDesconto: (centavos: number) => void;
+  fator: number;
+  /** "Caixa", "Fardo gelado"... */
+  embalagem: string;
+  margemTexto: (preco: number) => string | undefined;
+  editavel: boolean;
+  dica?: string;
+}) {
+  const unidade = paraCentavos(unidadeTexto);
+  const cheia = unidade * fator;
+  const caixa = Math.max(0, cheia - desconto);
+  // enquanto a pessoa digita, o campo mostra o que ela digitou, nao o calculado
+  const [caixaDigitada, setCaixaDigitada] = useState<string | null>(null);
+  const [descontoDigitado, setDescontoDigitado] = useState<string | null>(null);
+  const [verDesconto, setVerDesconto] = useState(desconto > 0);
+  const passou = caixaDigitada !== null && paraCentavos(caixaDigitada) > cheia;
+
+  return (
+    <div className="flex flex-col gap-3">
+      {titulo && <p className="text-[13px] font-semibold text-tinta">{titulo}</p>}
+      <Campo rotulo={rotuloUnidade} dica={margemTexto(unidade) ?? dica}>
+        <Entrada
+          inputMode="decimal"
+          value={unidadeTexto}
+          onChange={(e) => onUnidade(e.target.value)}
+          disabled={!editavel}
+          placeholder="0,00"
+        />
+      </Campo>
+
+      {fator > 1 && (
+        <div className="rounded-md bg-superficie2/70 px-3 py-2.5">
+          <div className="flex items-end gap-2">
+            <Campo rotulo={`${embalagem} com ${fator} (R$)`} className="min-w-0 flex-1">
+              <Entrada
+                inputMode="decimal"
+                aria-label={`Preço: ${embalagem}`}
+                value={caixaDigitada ?? paraTexto(caixa)}
+                onFocus={() => setCaixaDigitada(paraTexto(caixa))}
+                onBlur={() => setCaixaDigitada(null)}
+                onChange={(e) => {
+                  setCaixaDigitada(e.target.value);
+                  onDesconto(Math.max(0, cheia - paraCentavos(e.target.value)));
+                }}
+                disabled={!editavel || unidade <= 0}
+                placeholder="0,00"
+              />
+            </Campo>
+            {editavel && (
+              <Botao
+                type="button"
+                onClick={() => setVerDesconto((v) => !v)}
+                aria-pressed={verDesconto}
+                className="shrink-0"
+              >
+                <BadgePercent size={15} /> Desconto
+              </Botao>
+            )}
+          </div>
+          {verDesconto && (
+            <div className="mt-2 max-w-[220px]">
+              <Campo rotulo="Desconto (R$)">
+                <Entrada
+                  inputMode="decimal"
+                  aria-label={`Desconto: ${embalagem}`}
+                  value={descontoDigitado ?? paraTexto(desconto)}
+                  onFocus={() => setDescontoDigitado(paraTexto(desconto))}
+                  onBlur={() => setDescontoDigitado(null)}
+                  onChange={(e) => {
+                    setDescontoDigitado(e.target.value);
+                    onDesconto(paraCentavos(e.target.value));
+                  }}
+                  disabled={!editavel || unidade <= 0}
+                  placeholder="0,00"
+                />
+              </Campo>
+            </div>
+          )}
+          {unidade > 0 && (
+            <p className={`mt-2 text-[12px] leading-snug ${passou ? "text-alerta" : "text-tinta2"}`}>
+              {passou
+                ? `${embalagem} não pode passar das ${fator} unidades soltas (${moeda(cheia)}).`
+                : desconto > 0 && caixa > 0
+                  ? `${fator} × ${moeda(unidade)} = ${moeda(cheia)}, menos ${moeda(desconto)} de desconto. ` +
+                    `Sai a ${moeda(caixa / fator)} a unidade${margemTexto(caixa / fator) ? `, ${margemTexto(caixa / fator)}` : ""}.`
+                  : `${fator} × ${moeda(unidade)}, sem desconto. Se a unidade mudar, este preço acompanha.`}
+            </p>
+          )}
+        </div>
       )}
     </div>
   );

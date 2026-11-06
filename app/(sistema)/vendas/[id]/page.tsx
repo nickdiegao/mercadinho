@@ -220,8 +220,6 @@ export default function Recibo({ params }: { params: Promise<{ id: string }> }) 
               Condições
             </p>
             <p className="text-[12.5px] leading-relaxed text-tinta2">
-              Tabela de preço: <b>{venda.tipoPreco === "ATACADO" ? "Atacado" : "Varejo"}</b>
-              <br />
               Pagamento: <b>{FORMA[venda.formaPagamento]}</b>
               <br />
               Operador: {operador}

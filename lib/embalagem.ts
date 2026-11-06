@@ -6,7 +6,10 @@
  * 24 unidades saindo do saldo.
  */
 
-import type { Produto, UnidadeCompra, VendaItem } from "./tipos";
+import type { Produto, TipoPreco, UnidadeCompra, VendaItem } from "./tipos";
+
+/** Como o item saiu, nas telas e nos relatorios. */
+export const CANAL: Record<TipoPreco, string> = { VAREJO: "Unidade", ATACADO: "Caixa" };
 
 const NOMES: Record<UnidadeCompra, [singular: string, plural: string]> = {
   UN: ["unidade", "unidades"],
@@ -66,6 +69,7 @@ export function comoVendido(i: VendaItem) {
     qtd: i.qtd / i.embalagem.fator,
     unidade: i.embalagem.unidade as string,
     fator: i.embalagem.fator,
-    precoUnit: i.precoUnit * i.embalagem.fator,
+    // vendas anteriores a 0.1.8 nao guardavam o preco da caixa
+    precoUnit: i.embalagem.preco ?? i.precoUnit * i.embalagem.fator,
   };
 }

@@ -93,10 +93,18 @@ export function lerEstado(db: Conexao): Estado {
 
   const itensDaVenda = new Map<string, VendaItem[]>();
   for (const i of vendaItens) {
-    const { vendaId, posicao: _p, embalagemUnidade, embalagemFator, gelado, adicionalGelado, ...resto } = i;
+    const { vendaId, posicao: _p, embalagemUnidade, embalagemFator, embalagemPreco, gelado, adicionalGelado, ...resto } = i;
     const item: VendaItem = {
       ...resto,
-      ...(embalagemUnidade && embalagemFator ? { embalagem: { unidade: embalagemUnidade, fator: embalagemFator } } : {}),
+      ...(embalagemUnidade && embalagemFator
+        ? {
+            embalagem: {
+              unidade: embalagemUnidade,
+              fator: embalagemFator,
+              ...(embalagemPreco !== null ? { preco: embalagemPreco } : {}),
+            },
+          }
+        : {}),
       ...(gelado ? { gelado: true, adicionalGelado: adicionalGelado ?? 0 } : {}),
     };
     const lista = itensDaVenda.get(vendaId) ?? [];
@@ -107,14 +115,17 @@ export function lerEstado(db: Conexao): Estado {
   const { id: _id, ...empresa } = emp;
 
   return {
-    versao: 2,
+    versao: 3,
     empresa,
     usuarios,
     usuarioAtualId: null,
     categorias,
     fornecedores: fornecedores as Fornecedor[],
-    clientes: clientes.map((c) => semNulos(c) as Cliente),
-    produtos: produtos.map(({ cest: _c, cfop: _f, origem: _o, ...p }) => semNulos(p) as Produto),
+    // colunas fora de uso desde a 0.1.8 nao entram no dominio
+    clientes: clientes.map(({ tipoPreco: _t, ...c }) => semNulos(c) as Cliente),
+    produtos: produtos.map(
+      ({ cest: _c, cfop: _f, origem: _o, precoAtacado: _a, qtdMinimaAtacado: _q, ...p }) => semNulos(p) as Produto,
+    ),
     entradas: entradas.map((e) => ({ ...semNulos(e), itens: itensDaEntrada.get(e.id) ?? [] }) as Entrada),
     vendas: vendas.map((v) => ({ ...semNulos(v), itens: itensDaVenda.get(v.id) ?? [] }) as Venda),
     movimentos: movimentos.map(({ ordem: _o, ...m }) => semNulos(m) as MovimentoEstoque),
@@ -148,7 +159,8 @@ export function lerEstado(db: Conexao): Estado {
 
 // ================================================================ gravacao
 
-const linhaProduto = (p: Produto) => nulosNoLugar({ ...p });
+// as colunas antigas de atacado sao obrigatorias no banco: entram zeradas
+const linhaProduto = (p: Produto) => nulosNoLugar({ ...p, precoAtacado: 0, qtdMinimaAtacado: 0 });
 
 const linhaVenda = ({ itens: _i, ...v }: Venda) => nulosNoLugar({ ...v });
 
@@ -160,6 +172,7 @@ const linhasItensVenda = (v: Venda) =>
       posicao,
       embalagemUnidade: embalagem?.unidade,
       embalagemFator: embalagem?.fator,
+      embalagemPreco: embalagem?.preco,
       gelado: gelado === true,
       adicionalGelado: gelado ? (adicionalGelado ?? 0) : undefined,
     }),
